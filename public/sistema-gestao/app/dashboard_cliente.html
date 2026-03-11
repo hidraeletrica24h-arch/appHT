@@ -136,7 +136,7 @@
         const userData = JSON.parse(localStorage.getItem('gestao_user'));
         const role = localStorage.getItem('gestao_role');
 
-        if (!userData || role !== 'client') window.location.href = './login.html';
+        if (!userData || role !== 'client') window.location.href = '/';
 
         document.getElementById('clientGreeting').innerHTML = `Olá, <span class="text-red-500">${userData.name.split(' ')[0]}</span>`;
 
