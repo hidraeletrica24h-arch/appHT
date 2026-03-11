@@ -25,9 +25,17 @@ export default function App() {
   const [authStatus, setAuthStatus] = React.useState<'loading' | 'gateway' | 'authenticated'>('loading');
 
   React.useEffect(() => {
-    // Check Authentication
+    // Check Authentication e validade da sessão (8 horas)
     const role = localStorage.getItem('gestao_role');
-    if (!role) {
+    const loginTime = localStorage.getItem('gestao_login_time');
+    const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+    const sessionExpired = loginTime && (Date.now() - parseInt(loginTime)) > EIGHT_HOURS;
+
+    if (!role || sessionExpired) {
+      // Limpa sessão expirada
+      localStorage.removeItem('gestao_role');
+      localStorage.removeItem('gestao_user');
+      localStorage.removeItem('gestao_login_time');
       setAuthStatus('gateway');
       return;
     } else if (role === 'admin') {
@@ -204,6 +212,7 @@ export default function App() {
       if (loginForm.isAdmin) {
         if (loginForm.user === 'admin' && loginForm.pass === '2486') {
           localStorage.setItem('gestao_role', 'admin');
+          localStorage.setItem('gestao_login_time', Date.now().toString());
           window.location.href = '/sistema-gestao/sistema/admin/index.html';
           return;
         } else {
