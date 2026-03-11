@@ -102,7 +102,7 @@
         const searchInput = document.querySelector('input[type="text"]');
 
         async function loadClients(query = '') {
-            let rpc = sb.from('gestao_clientes').select('*');
+            let rpc = sb.from('gestao_clientes_assinantes').select('*');
 
             if (query) {
                 rpc = rpc.or(`name.ilike.%${query}%,username.ilike.%${query}%`);
@@ -155,7 +155,7 @@
         async function deleteClient(id) {
             if (!confirm('Tem certeza que deseja excluir este cliente definitivamente?')) return;
 
-            const { error } = await sb.from('gestao_clientes').delete().eq('id', id);
+            const { error } = await sb.from('gestao_clientes_assinantes').delete().eq('id', id);
             if (error) alert('Erro ao excluir: ' + error.message);
             else loadClients(searchInput.value);
         }
@@ -174,7 +174,7 @@
 
             // 1. Criar Cliente
             const { data: client, error: clientErr } = await sb
-                .from('gestao_clientes')
+                .from('gestao_clientes_assinantes')
                 .insert([{ name, username, password }])
                 .select()
                 .single();

@@ -30,6 +30,9 @@ export default function App() {
     if (!role) {
       setAuthStatus('gateway');
       return;
+    } else if (role === 'admin') {
+      window.location.href = '/sistema-gestao/sistema/admin/index.html';
+      return;
     } else {
       setAuthStatus('authenticated');
     }
@@ -218,7 +221,7 @@ export default function App() {
       }
 
       const { data: userData, error: authError } = await (supabase as any)
-        .from('gestao_clientes')
+        .from('gestao_clientes_assinantes')
         .select('*')
         .eq('username', loginForm.user)
         .eq('password', loginForm.pass)
