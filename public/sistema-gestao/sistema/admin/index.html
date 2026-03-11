@@ -179,15 +179,14 @@
         const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
         const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Proteção de Rota + Expiração de Sessão (8 horas)
-        const role = localStorage.getItem('gestao_role');
-        const loginTime = localStorage.getItem('gestao_login_time');
+        // Proteção de Rota via sessionStorage (expira ao fechar a aba)
+        const role = sessionStorage.getItem('gestao_role');
+        const loginTime = sessionStorage.getItem('gestao_login_time');
         const EIGHT_HOURS = 8 * 60 * 60 * 1000;
         const sessionExpired = !loginTime || (Date.now() - parseInt(loginTime)) > EIGHT_HOURS;
 
         if (role !== 'admin' || sessionExpired) {
-            localStorage.removeItem('gestao_role');
-            localStorage.removeItem('gestao_login_time');
+            sessionStorage.clear();
             window.location.href = '/';
         }
 
