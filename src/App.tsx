@@ -187,53 +187,137 @@ export default function App() {
     }
   };
 
+  const [loginForm, setLoginForm] = React.useState({ user: '', pass: '', isAdmin: false });
+  const [loginError, setLoginError] = React.useState('');
+  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setIsLoggingIn(true);
+
+    try {
+      // 1. Admin Logic
+      if (loginForm.isAdmin) {
+        if (loginForm.user === 'admin' && loginForm.pass === '2486') {
+          localStorage.setItem('gestao_role', 'admin');
+          window.location.href = '/sistema-gestao/sistema/admin/index.html';
+          return;
+        } else {
+          setLoginError('Credenciais de administrador inválidas.');
+          setIsLoggingIn(false);
+          return;
+        }
+      }
+
+      // 2. Client Logic
+      const { data, error } = await syncSupabaseToLocal(); // Actually we need direct check for login
+      // Import supabase for direct check if needed, or use a helper
+      const { data: userData, error: authError } = await (window as any).supabase
+        ? await (window as any).supabase
+          .from('gestao_clientes')
+          .select('*')
+          .eq('username', loginForm.user)
+          .eq('password', loginForm.pass)
+          .single()
+        : { data: null, error: { message: 'Supabase não configurado' } };
+
+      if (authError || !userData) {
+        setLoginError('Usuário ou senha inválidos.');
+      } else {
+        localStorage.setItem('gestao_role', 'client');
+        localStorage.setItem('gestao_user', JSON.stringify(userData));
+        setAuthStatus('authenticated');
+      }
+    } catch (err: any) {
+      setLoginError('Erro ao conectar ao servidor.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   if (authStatus === 'gateway') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 relative overflow-hidden">
+      <div className="min-h-screen bg-[#050505] text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-900/10 blur-[120px] rounded-full animate-pulse delay-700" />
 
-        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-          <div className="md:col-span-2 text-center mb-12 space-y-4">
-            <h1 className="text-5xl font-black font-outfit tracking-tighter text-white">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 w-full max-w-md bg-zinc-900/50 border border-zinc-800 p-10 rounded-[40px] shadow-2xl backdrop-blur-xl"
+        >
+          <div className="text-center mb-10 space-y-2">
+            <h1 className="text-4xl font-black font-outfit tracking-tighter">
               HIDRAELÉTRICA <span className="text-red-600">PRO</span>
             </h1>
-            <p className="text-zinc-500 font-medium tracking-wide uppercase text-xs">Selecione o seu portal de acesso</p>
+            <p className="text-zinc-500 text-sm font-bold tracking-widest uppercase">Portal de Acesso</p>
           </div>
 
-          {/* Card Área do Cliente */}
-          <motion.button
-            whileHover={{ scale: 1.02, y: -5 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => window.location.href = '/sistema-gestao/app/login.html'}
-            className="group bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 p-10 rounded-[40px] text-left transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(220,38,38,0.15)]"
-          >
-            <div className="w-16 h-16 bg-red-600/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="flex bg-zinc-950 p-1 rounded-2xl border border-zinc-800 mb-8">
+              <button
+                type="button"
+                onClick={() => setLoginForm({ ...loginForm, isAdmin: false })}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${!loginForm.isAdmin ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'text-zinc-500 hover:text-white'}`}
+              >
+                Eletricista
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginForm({ ...loginForm, isAdmin: true })}
+                className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${loginForm.isAdmin ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
+              >
+                ADMIN
+              </button>
             </div>
-            <h3 className="text-2xl font-black text-white mb-2">Área do Cliente</h3>
-            <p className="text-zinc-500 text-sm leading-relaxed">Acesse suas ferramentas, status de assinatura e suporte técnico personalizado.</p>
-          </motion.button>
 
-          {/* Card Painel Master */}
-          <motion.button
-            whileHover={{ scale: 1.02, y: -5 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => window.location.href = '/sistema-gestao/app/login.html?admin=true'}
-            className="group bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 p-10 rounded-[40px] text-left transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(220,38,38,0.15)]"
-          >
-            <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Usuário</label>
+                <input
+                  type="text"
+                  required
+                  value={loginForm.user}
+                  onChange={(e) => setLoginForm({ ...loginForm, user: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all font-medium text-white"
+                  placeholder="Seu usuário"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Senha</label>
+                <input
+                  type="password"
+                  required
+                  value={loginForm.pass}
+                  onChange={(e) => setLoginForm({ ...loginForm, pass: e.target.value })}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all font-medium text-white"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
-            <h3 className="text-2xl font-black text-white mb-2">Painel Master</h3>
-            <p className="text-zinc-500 text-sm leading-relaxed">Gestão administrativa de clientes, planos, controle financeiro e relatórios master.</p>
-          </motion.button>
-        </div>
+
+            {loginError && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-[10px] font-bold uppercase tracking-widest text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">
+                {loginError}
+              </motion.p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-red-900/20 active:scale-95 disabled:opacity-50"
+            >
+              {isLoggingIn ? 'Autenticando...' : 'Entrar no Sistema'}
+            </button>
+          </form>
+
+          <p className="text-center mt-8 text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em]">
+            HidraElétrica &copy; 2024
+          </p>
+        </motion.div>
       </div>
     );
   }
