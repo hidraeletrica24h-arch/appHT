@@ -90,7 +90,7 @@
         async function loadHistory() {
             const { data: subs, error } = await sb
                 .from('gestao_assinaturas')
-                .select('*, gestao_clientes(name), gestao_planos(name, price)')
+                .select('*, gestao_clientes_assinantes(name), gestao_planos(name, price)')
                 .order('expiry_date', { ascending: false });
 
             if (error) {
@@ -109,7 +109,7 @@
                 ` + subs.map(s => `
                     <div class="grid grid-cols-4 gap-4 p-4 bg-zinc-950/50 rounded-xl text-sm items-center">
                         <span class="text-zinc-400">${new Date(s.expiry_date).toLocaleDateString('pt-BR')}</span>
-                        <span class="font-bold">${s.gestao_clientes?.name || 'N/A'}</span>
+                        <span class="font-bold">${s.gestao_clientes_assinantes?.name || 'N/A'}</span>
                         <span class="text-xs text-zinc-500">${s.gestao_planos?.name || 'N/A'}</span>
                         <span class="text-right font-black text-white">R$ ${(s.gestao_planos?.price || 0).toFixed(2).replace('.', ',')}</span>
                     </div>
