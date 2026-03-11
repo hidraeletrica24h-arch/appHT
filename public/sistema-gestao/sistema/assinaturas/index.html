@@ -33,7 +33,7 @@
                 <h1 class="text-3xl font-outfit font-black">Planos de <span class="text-red-500">Assinatura</span></h1>
                 <p class="text-zinc-500">Gerencie os valores e durações dos planos.</p>
             </div>
-            <a href="index.html" class="text-zinc-500 hover:text-white text-sm">← Voltar</a>
+            <a href="../admin/index.html" class="text-zinc-500 hover:text-white text-sm">← Voltar</a>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -46,7 +46,7 @@
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
                         <p id="price-basic" class="text-2xl font-black">R$ 49,90</p>
                     </div>
-                    <button
+                    <button onclick="openEditModal('basic', 'Plano Básico', 49.90)"
                         class="w-full py-3 border border-zinc-800 hover:border-red-500 text-zinc-400 hover:text-red-500 rounded-xl font-bold text-xs transition-all">EDITAR
                         PLANO</button>
                 </div>
@@ -64,7 +64,7 @@
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
                         <p id="price-pro" class="text-2xl font-black text-red-500">R$ 149,90</p>
                     </div>
-                    <button
+                    <button onclick="openEditModal('pro', 'Plano Profissional', 149.90)"
                         class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs transition-all">EDITAR
                         PLANO</button>
                 </div>
@@ -79,13 +79,40 @@
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Anual</p>
                         <p id="price-premium" class="text-2xl font-black text-emerald-500">R$ 1.200,00</p>
                     </div>
-                    <button
+                    <button onclick="openEditModal('premium', 'Plano Premium', 1200.00)"
                         class="w-full py-3 border border-zinc-800 hover:border-emerald-500 text-zinc-400 hover:text-emerald-500 rounded-xl font-bold text-xs transition-all">EDITAR
                         PLANO</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modal Editar Valor -->
+    <div id="editModal"
+        class="hidden fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-[32px] p-10 glow-red">
+            <h2 id="modalTitle" class="text-2xl font-black font-outfit mb-2 text-white">Editar Plano</h2>
+            <p class="text-zinc-500 text-xs mb-8">Altere o valor mensal/anual do plano selecionado.</p>
+
+            <form id="editForm" class="space-y-6">
+                <input type="hidden" id="editPlanId">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest ml-2">Novo Valor
+                        (R$)</label>
+                    <input type="number" step="0.01" id="newPrice" required
+                        class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-red-600/50 transition-all text-white text-xl font-black">
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeModal()"
+                        class="flex-1 py-4 text-zinc-500 font-bold hover:text-white transition-all text-sm uppercase tracking-widest">Cancelar</button>
+                    <button type="submit"
+                        class="flex-[2] py-4 bg-red-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-red-900/20">SALVAR</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
@@ -102,7 +129,6 @@
                 return;
             }
 
-            // Mapear planos para os IDs corretos no HTML
             const basic = plans.find(p => p.id === 'basic');
             const pro = plans.find(p => p.id === 'pro');
             const premium = plans.find(p => p.id === 'premium');
@@ -111,6 +137,32 @@
             if (pro) document.getElementById('price-pro').innerText = `R$ ${pro.price.toFixed(2).replace('.', ',')}`;
             if (premium) document.getElementById('price-premium').innerText = `R$ ${premium.price.toFixed(2).replace('.', ',')}`;
         }
+
+        function openEditModal(id, name, price) {
+            document.getElementById('editPlanId').value = id;
+            document.getElementById('modalTitle').innerText = name;
+            document.getElementById('newPrice').value = price;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        document.getElementById('editForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editPlanId').value;
+            const price = parseFloat(document.getElementById('newPrice').value);
+
+            const { error } = await sb.from('gestao_planos').update({ price }).eq('id', id);
+
+            if (error) {
+                alert('Erro ao atualizar valor: ' + error.message);
+            } else {
+                closeModal();
+                loadPlans();
+            }
+        };
 
         loadPlans();
     </script>
