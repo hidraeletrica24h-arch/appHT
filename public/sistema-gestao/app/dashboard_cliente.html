@@ -127,19 +127,59 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        const token = localStorage.getItem('gestao_token');
-        if (!token) window.location.href = './login.html';
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // Simulação de carregamento de dados do cliente
-        // Em um app real, o token seria validado no backend
-        document.getElementById('planName').innerText = "Plano Profissional";
-        document.getElementById('expiryDate').innerText = "15 de Outubro, 2026";
+        const userData = JSON.parse(localStorage.getItem('gestao_user'));
+        const role = localStorage.getItem('gestao_role');
+
+        if (!userData || role !== 'client') window.location.href = './login.html';
+
+        document.getElementById('clientGreeting').innerHTML = `Olá, <span class="text-red-500">${userData.name.split(' ')[0]}</span>`;
+
+        async function loadSubscription() {
+            const { data: sub, error } = await supabase
+                .from('gestao_assinaturas')
+                .select(`
+                    *,
+                    gestao_planos ( name, price )
+                `)
+                .eq('client_id', userData.id)
+                .single();
+
+            if (error || !sub) {
+                showNoAccess();
+                return;
+            }
+
+            document.getElementById('planName').innerText = sub.gestao_planos?.name || "Sem Plano";
+
+            const expiry = new Date(sub.expiry_date);
+            document.getElementById('expiryDate').innerText = expiry.toLocaleDateString('pt-BR', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+
+            if (sub.status !== 'active' || expiry < new Date()) {
+                showNoAccess();
+            }
+        }
+
+        function showNoAccess() {
+            document.getElementById('activeContent').classList.add('hidden');
+            document.getElementById('noAccessMsg').classList.remove('hidden');
+            document.getElementById('planStatusBadge').innerText = "INATIVO";
+            document.getElementById('planStatusBadge').className = "inline-block px-3 py-1 bg-red-500/10 text-red-500 rounded-full text-[10px] font-black uppercase tracking-widest mt-2 border border-red-500/20";
+        }
 
         function logout() {
             localStorage.clear();
             window.location.href = './login.html';
         }
+
+        loadSubscription();
     </script>
 </body>
 

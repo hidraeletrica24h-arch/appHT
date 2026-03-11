@@ -24,6 +24,13 @@ export default function App() {
   const [isCheckingSupabase, setIsCheckingSupabase] = React.useState(false);
 
   React.useEffect(() => {
+    // Check Authentication
+    const role = localStorage.getItem('gestao_role');
+    if (!role) {
+      window.location.href = '/sistema-gestao/app/login.html';
+      return;
+    }
+
     // Initial Sync from Supabase
     const initSync = async () => {
       setIsSyncing(true);
