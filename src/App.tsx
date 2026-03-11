@@ -22,13 +22,16 @@ export default function App() {
   const [isSyncing, setIsSyncing] = React.useState(true);
   const [supabaseStatus, setSupabaseStatus] = React.useState<{ success: boolean; error?: string } | null>(null);
   const [isCheckingSupabase, setIsCheckingSupabase] = React.useState(false);
+  const [authStatus, setAuthStatus] = React.useState<'loading' | 'gateway' | 'authenticated'>('loading');
 
   React.useEffect(() => {
     // Check Authentication
     const role = localStorage.getItem('gestao_role');
     if (!role) {
-      window.location.href = '/sistema-gestao/app/login.html';
+      setAuthStatus('gateway');
       return;
+    } else {
+      setAuthStatus('authenticated');
     }
 
     // Initial Sync from Supabase
@@ -184,7 +187,58 @@ export default function App() {
     }
   };
 
-  if (isSyncing) {
+  if (authStatus === 'gateway') {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-red-900/10 blur-[120px] rounded-full animate-pulse delay-700" />
+
+        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+          <div className="md:col-span-2 text-center mb-12 space-y-4">
+            <h1 className="text-5xl font-black font-outfit tracking-tighter text-white">
+              HIDRAELÉTRICA <span className="text-red-600">PRO</span>
+            </h1>
+            <p className="text-zinc-500 font-medium tracking-wide uppercase text-xs">Selecione o seu portal de acesso</p>
+          </div>
+
+          {/* Card Área do Cliente */}
+          <motion.button
+            whileHover={{ scale: 1.02, y: -5 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => window.location.href = '/sistema-gestao/app/login.html'}
+            className="group bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 p-10 rounded-[40px] text-left transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(220,38,38,0.15)]"
+          >
+            <div className="w-16 h-16 bg-red-600/10 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2">Área do Cliente</h3>
+            <p className="text-zinc-500 text-sm leading-relaxed">Acesse suas ferramentas, status de assinatura e suporte técnico personalizado.</p>
+          </motion.button>
+
+          {/* Card Painel Master */}
+          <motion.button
+            whileHover={{ scale: 1.02, y: -5 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => window.location.href = '/sistema-gestao/app/login.html?admin=true'}
+            className="group bg-zinc-900/50 border border-zinc-800 hover:border-red-600/50 p-10 rounded-[40px] text-left transition-all duration-500 hover:shadow-[0_20px_40px_-15px_rgba(220,38,38,0.15)]"
+          >
+            <div className="w-16 h-16 bg-zinc-800 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2">Painel Master</h3>
+            <p className="text-zinc-500 text-sm leading-relaxed">Gestão administrativa de clientes, planos, controle financeiro e relatórios master.</p>
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSyncing || authStatus === 'loading') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white space-y-6">
         <div className="relative flex items-center justify-center">
@@ -229,8 +283,14 @@ export default function App() {
               <p className="text-xs font-bold text-white">Administrador</p>
               <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Porto Alegre, RS</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold shadow-lg shadow-red-600/20">
+            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center text-white font-bold shadow-lg shadow-red-600/20 cursor-pointer group relative"
+              onClick={() => {
+                localStorage.clear();
+                window.location.href = '/';
+              }}
+            >
               AD
+              <div className="absolute top-full mt-2 right-0 bg-red-600 text-[8px] font-black uppercase py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">SAIR</div>
             </div>
           </div>
         </header>
