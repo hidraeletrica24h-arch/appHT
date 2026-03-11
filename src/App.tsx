@@ -14,7 +14,7 @@ import { Packages } from './components/Packages';
 import { ServiceOrders } from './components/ServiceOrders';
 import { motion, AnimatePresence } from 'motion/react';
 import { db, syncSupabaseToLocal } from './db';
-import { checkSupabaseConnection } from './lib/supabase';
+import { supabase, checkSupabaseConnection } from './lib/supabase';
 
 export default function App() {
   const [activeTab, setActiveTab] = React.useState('dashboard');
