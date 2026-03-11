@@ -71,6 +71,52 @@
             </div>
         </div>
     </div>
-</body>
+    <div id="payments-history" class="space-y-3">
+        <!-- Itens dinâmicos -->
+    </div>
+    </table>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '../../app/login.html';
+
+        async function loadHistory() {
+            const { data: subs, error } = await supabase
+                .from('gestao_assinaturas')
+                .select('*, gestao_clientes(name), gestao_planos(name, price)')
+                .order('expiry_date', { ascending: false });
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const container = document.getElementById('payments-history');
+            container.innerHTML = `
+                    <div class="grid grid-cols-4 gap-4 p-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest border-b border-zinc-800">
+                        <span>Data Venc.</span>
+                        <span>Cliente</span>
+                        <span>Plano</span>
+                        <span class="text-right">Valor</span>
+                    </div>
+                ` + subs.map(s => `
+                    <div class="grid grid-cols-4 gap-4 p-4 bg-zinc-950/50 rounded-xl text-sm items-center">
+                        <span class="text-zinc-400">${new Date(s.expiry_date).toLocaleDateString('pt-BR')}</span>
+                        <span class="font-bold">${s.gestao_clientes?.name || 'N/A'}</span>
+                        <span class="text-xs text-zinc-500">${s.gestao_planos?.name || 'N/A'}</span>
+                        <span class="text-right font-black text-white">R$ ${(s.gestao_planos?.price || 0).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                `).join('');
+        }
+
+        loadHistory();
+    </script>
 
 </html>

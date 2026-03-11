@@ -54,42 +54,82 @@
                         <th class="px-8 py-5 text-right">Ações</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
-                    <tr class="hover:bg-zinc-900/50 transition-colors">
-                        <td class="px-8 py-6">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold">
-                                    JM</div>
-                                <div>
-                                    <p class="font-bold">João Maria</p>
-                                    <p class="text-xs text-zinc-500">/joao_maria/dados.json</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-8 py-6 text-sm text-zinc-400">10/03/2026</td>
-                        <td class="px-8 py-6">
-                            <span
-                                class="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">ATIVO</span>
-                        </td>
-                        <td class="px-8 py-6 text-right">
-                            <div class="flex justify-end gap-3">
-                                <button class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg"><svg
-                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg></button>
-                                <button class="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg"><svg
-                                        class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg></button>
-                            </div>
-                        </td>
-                    </tr>
+                <tbody id="clientsTable" class="divide-y divide-zinc-800">
+                    <!-- Clientes dinâmicos -->
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '../../app/login.html';
+
+        const searchInput = document.querySelector('input[type="text"]');
+
+        async function loadClients(query = '') {
+            let rpc = supabase.from('gestao_clientes').select('*');
+
+            if (query) {
+                rpc = rpc.or(`name.ilike.%${query}%,username.ilike.%${query}%`);
+            }
+
+            const { data: clients, error } = await rpc;
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const table = document.getElementById('clientsTable');
+            table.innerHTML = clients.map(c => `
+                    <tr class="hover:bg-zinc-900/50 transition-colors">
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold">
+                                    ${c.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p class="font-bold">${c.name}</p>
+                                    <p class="text-xs text-zinc-500">@${c.username}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-sm text-zinc-400">
+                            ${new Date(c.created_at).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 ${c.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+                                ${c.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <div class="flex justify-end gap-3">
+                                <button class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button onclick="deleteClient('${c.id}')" class="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+        }
+
+        async function deleteClient(id) {
+            if (!confirm('Tem certeza que deseja excluir este cliente definitivamente?')) return;
+
+            const { error } = await supabase.from('gestao_clientes').delete().eq('id', id);
+            if (error) alert('Erro ao excluir: ' + error.message);
+            else loadClients(searchInput.value);
+        }
+
+        searchInput.addEventListener('input', (e) => loadClients(e.target.value));
+
+        loadClients();
+    </script>
     </div>
 </body>
 

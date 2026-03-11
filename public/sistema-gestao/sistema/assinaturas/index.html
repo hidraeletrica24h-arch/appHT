@@ -44,7 +44,7 @@
                 <div class="space-y-4">
                     <div class="bg-zinc-950 p-4 rounded-xl">
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
-                        <p class="text-2xl font-black">R$ 49,90</p>
+                        <p id="price-basic" class="text-2xl font-black">R$ 49,90</p>
                     </div>
                     <button
                         class="w-full py-3 border border-zinc-800 hover:border-red-500 text-zinc-400 hover:text-red-500 rounded-xl font-bold text-xs transition-all">EDITAR
@@ -62,7 +62,7 @@
                 <div class="space-y-4">
                     <div class="bg-zinc-950 p-4 rounded-xl border border-red-600/20">
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
-                        <p class="text-2xl font-black text-red-500">R$ 149,90</p>
+                        <p id="price-pro" class="text-2xl font-black text-red-500">R$ 149,90</p>
                     </div>
                     <button
                         class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs transition-all">EDITAR
@@ -77,7 +77,7 @@
                 <div class="space-y-4">
                     <div class="bg-zinc-950 p-4 rounded-xl">
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Anual</p>
-                        <p class="text-2xl font-black text-emerald-500">R$ 1.200,00</p>
+                        <p id="price-premium" class="text-2xl font-black text-emerald-500">R$ 1.200,00</p>
                     </div>
                     <button
                         class="w-full py-3 border border-zinc-800 hover:border-emerald-500 text-zinc-400 hover:text-emerald-500 rounded-xl font-bold text-xs transition-all">EDITAR
@@ -86,6 +86,34 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '../../app/login.html';
+
+        async function loadPlans() {
+            const { data: plans, error } = await supabase.from('gestao_planos').select('*');
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            // Mapear planos para os IDs corretos no HTML
+            const basic = plans.find(p => p.id === 'basic');
+            const pro = plans.find(p => p.id === 'pro');
+            const premium = plans.find(p => p.id === 'premium');
+
+            if (basic) document.getElementById('price-basic').innerText = `R$ ${basic.price.toFixed(2).replace('.', ',')}`;
+            if (pro) document.getElementById('price-pro').innerText = `R$ ${pro.price.toFixed(2).replace('.', ',')}`;
+            if (premium) document.getElementById('price-premium').innerText = `R$ ${premium.price.toFixed(2).replace('.', ',')}`;
+        }
+
+        loadPlans();
+    </script>
 </body>
 
 </html>

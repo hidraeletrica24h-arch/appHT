@@ -80,6 +80,45 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '../../app/login.html';
+
+        async function loadConfig() {
+            const { data, error } = await supabase.from('gestao_config').select('*').eq('id', 'main').single();
+            if (data) {
+                document.getElementById('pix_key').value = data.pix_key || '';
+                document.getElementById('card_link').value = data.card_link || '';
+            }
+        }
+
+        async function updatePix() {
+            const pix_key = document.getElementById('pix_key').value;
+            const { error } = await supabase.from('gestao_config').update({ pix_key }).eq('id', 'main');
+            if (error) alert('Erro ao atualizar PIX: ' + error.message);
+            else alert('Chave PIX atualizada com sucesso!');
+        }
+
+        async function updateCard() {
+            const card_link = document.getElementById('card_link').value;
+            const { error } = await supabase.from('gestao_config').update({ card_link }).eq('id', 'main');
+            if (error) alert('Erro ao atualizar Link: ' + error.message);
+            else alert('Link de pagamento atualizado com sucesso!');
+        }
+
+        // Adicionar eventos aos botões
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.innerText.includes('PIX')) btn.onclick = updatePix;
+            if (btn.innerText.includes('LINK')) btn.onclick = updateCard;
+        });
+
+        loadConfig();
+    </script>
 </body>
 
 </html>

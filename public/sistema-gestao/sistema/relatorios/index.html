@@ -44,7 +44,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="card p-8 rounded-3xl glow-emerald">
                 <p class="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">Ganhos do Mês (Março)</p>
-                <p class="text-4xl font-outfit font-black text-emerald-500">R$ 12.450</p>
+                <p id="monthly-revenue" class="text-4xl font-outfit font-black text-emerald-500">R$ 12.450</p>
                 <div class="mt-4 flex items-center gap-2 text-emerald-500/60 text-xs">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd"
@@ -56,11 +56,11 @@
             </div>
             <div class="card p-8 rounded-3xl">
                 <p class="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">Assinaturas Ativas</p>
-                <p class="text-4xl font-outfit font-black">42</p>
+                <p id="active-subs" class="text-4xl font-outfit font-black">42</p>
             </div>
             <div class="card p-8 rounded-3xl">
                 <p class="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-2">Ganhos Totais</p>
-                <p class="text-4xl font-outfit font-black text-white">R$ 84.200</p>
+                <p id="total-revenue" class="text-4xl font-outfit font-black text-white">R$ 84.200</p>
             </div>
         </div>
 
@@ -87,6 +87,37 @@
             </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '../../app/login.html';
+
+        async function loadStats() {
+            const { data: subs, error } = await supabase
+                .from('gestao_assinaturas')
+                .select('*, gestao_planos(price)')
+                .eq('status', 'active');
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const activeCount = subs.length;
+            const monthlyRevenue = subs.reduce((acc, sub) => acc + (sub.gestao_planos?.price || 0), 0);
+            const totalRevenue = monthlyRevenue * 12; // Simulação de projeção
+
+            document.getElementById('active-subs').innerText = activeCount;
+            document.getElementById('monthly-revenue').innerText = `R$ ${monthlyRevenue.toFixed(2).replace('.', ',')}`;
+            document.getElementById('total-revenue').innerText = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
+        }
+
+        loadStats();
+    </script>
 </body>
 
 </html>
