@@ -36,22 +36,7 @@
             <a href="../admin/index.html" class="text-zinc-500 hover:text-white text-sm">← Voltar</a>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Plano Básico -->
-            <div class="card p-8 rounded-3xl border-t-4 border-zinc-500">
-                <h3 class="text-xl font-black mb-2">Plano Básico</h3>
-                <p class="text-zinc-500 text-xs mb-8">Ideal para iniciantes e pequenos serviços.</p>
-                <div class="space-y-4">
-                    <div class="bg-zinc-950 p-4 rounded-xl">
-                        <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
-                        <p id="price-basic" class="text-2xl font-black">R$ 49,90</p>
-                    </div>
-                    <button onclick="openEditModal('basic', 'Plano Básico', 49.90)"
-                        class="w-full py-3 border border-zinc-800 hover:border-red-500 text-zinc-400 hover:text-red-500 rounded-xl font-bold text-xs transition-all">EDITAR
-                        PLANO</button>
-                </div>
-            </div>
-
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <!-- Plano PRO -->
             <div class="card p-8 rounded-3xl border-t-4 border-red-600 glow-red">
                 <div
@@ -62,9 +47,9 @@
                 <div class="space-y-4">
                     <div class="bg-zinc-950 p-4 rounded-xl border border-red-600/20">
                         <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
-                        <p id="price-pro" class="text-2xl font-black text-red-500">R$ 149,90</p>
+                        <p id="price-pro" class="text-2xl font-black text-red-500">R$ 25,00</p>
                     </div>
-                    <button onclick="openEditModal('pro', 'Plano Profissional', 149.90)"
+                    <button onclick="openEditModal('pro', 'Plano Profissional', 25.00)"
                         class="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs transition-all">EDITAR
                         PLANO</button>
                 </div>
@@ -76,10 +61,10 @@
                 <p class="text-zinc-500 text-xs mb-8">Suporte VIP e relatórios avançados.</p>
                 <div class="space-y-4">
                     <div class="bg-zinc-950 p-4 rounded-xl">
-                        <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Anual</p>
-                        <p id="price-premium" class="text-2xl font-black text-emerald-500">R$ 1.200,00</p>
+                        <p class="text-[10px] text-zinc-500 uppercase font-black tracking-widest mb-1">Valor Mensal</p>
+                        <p id="price-premium" class="text-2xl font-black text-emerald-500">R$ 40,00</p>
                     </div>
-                    <button onclick="openEditModal('premium', 'Plano Premium', 1200.00)"
+                    <button onclick="openEditModal('premium', 'Plano Premium', 40.00)"
                         class="w-full py-3 border border-zinc-800 hover:border-emerald-500 text-zinc-400 hover:text-emerald-500 rounded-xl font-bold text-xs transition-all">EDITAR
                         PLANO</button>
                 </div>
@@ -129,11 +114,9 @@
                 return;
             }
 
-            const basic = plans.find(p => p.id === 'basic');
             const pro = plans.find(p => p.id === 'pro');
             const premium = plans.find(p => p.id === 'premium');
 
-            if (basic) document.getElementById('price-basic').innerText = `R$ ${basic.price.toFixed(2).replace('.', ',')}`;
             if (pro) document.getElementById('price-pro').innerText = `R$ ${pro.price.toFixed(2).replace('.', ',')}`;
             if (premium) document.getElementById('price-premium').innerText = `R$ ${premium.price.toFixed(2).replace('.', ',')}`;
         }
