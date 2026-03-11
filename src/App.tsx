@@ -221,7 +221,7 @@ export default function App() {
       }
 
       const { data: userData, error: authError } = await (supabase as any)
-        .from('gestao_clientes_assinantes')
+        .from('gestao_clientes_as')
         .select('*')
         .eq('username', loginForm.user)
         .eq('password', loginForm.pass)

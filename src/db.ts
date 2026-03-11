@@ -31,7 +31,7 @@ export const syncSupabaseToLocal = async () => {
 
   try {
     const promises = [
-      supabase.from('clients').select('*'),
+      supabase.from('clientes_os').select('*'),
       supabase.from('materials').select('*'),
       supabase.from('services').select('*'),
       supabase.from('budgets').select('*, budget_items(*)'),
@@ -151,7 +151,7 @@ export const db = {
     triggerEvent();
 
     if (supabase) {
-      supabase.from('clients').upsert({
+      supabase.from('clientes_os').upsert({
         id: client.id,
         name: client.name,
         phone: client.phone || null,
@@ -169,7 +169,7 @@ export const db = {
     triggerEvent();
 
     if (supabase) {
-      supabase.from('clients').delete().eq('id', id).then(({ error }) => { if (error) console.error("Client Delete Erro:", error); });
+      supabase.from('clientes_os').delete().eq('id', id).then(({ error }) => { if (error) console.error("Client Delete Erro:", error); });
     }
   },
 

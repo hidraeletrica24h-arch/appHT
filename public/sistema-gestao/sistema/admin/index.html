@@ -185,7 +185,7 @@
 
         async function loadClients() {
             const { data: clients, error } = await sb
-                .from('gestao_clientes_assinantes')
+                .from('gestao_clientes_as')
                 .select(`
                     *,
                     gestao_assinaturas (
@@ -242,7 +242,7 @@
 
             // 1. Criar Cliente
             const { data: client, error: clientErr } = await sb
-                .from('gestao_clientes_assinantes')
+                .from('gestao_clientes_as')
                 .insert([{ name, username, password }])
                 .select()
                 .single();
