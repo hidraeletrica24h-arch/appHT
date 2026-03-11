@@ -193,10 +193,15 @@
 
             if (error) {
                 console.error(error);
+                document.getElementById('clientsTable').innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-zinc-600 italic">Erro ao carregar ou banco vazio.</td></tr>';
                 return;
             }
 
             const table = document.getElementById('clientsTable');
+            if (!clients || clients.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-zinc-600 italic">Nenhum cliente cadastrado.</td></tr>';
+                return;
+            }
             table.innerHTML = clients.map(c => {
                 const subscription = c.gestao_assinaturas?.[0] || {};
                 return `
@@ -226,6 +231,11 @@
             const password = document.getElementById('password').value;
             const planId = document.getElementById('plan').value;
 
+            const btn = document.getElementById('saveClientBtn');
+            const originalText = btn.innerText;
+            btn.innerText = 'PROCESSANDO...';
+            btn.disabled = true;
+
             // 1. Criar Cliente
             const { data: client, error: clientErr } = await sb
                 .from('gestao_clientes')
@@ -235,6 +245,8 @@
 
             if (clientErr) {
                 alert('Erro ao criar cliente: ' + clientErr.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
                 return;
             }
 

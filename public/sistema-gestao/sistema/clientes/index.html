@@ -39,7 +39,7 @@
         <div class="flex gap-4 mb-6">
             <input type="text" placeholder="Buscar por nome ou usuário..."
                 class="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600/30">
-            <button onclick="window.location.href='../admin/index.html'"
+            <button onclick="openModal()"
                 class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-sm transition-all">+
                 Novo</button>
         </div>
@@ -58,6 +58,35 @@
                     <!-- Clientes dinâmicos -->
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Modal Novo Cliente (Copiado do Admin para consistência) -->
+    <div id="newClientModal"
+        class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-3xl p-10">
+            <h2 class="text-2xl font-black font-outfit mb-6">Cadastrar <span class="text-red-500">Novo Cliente</span>
+            </h2>
+            <form id="clientForm" class="space-y-4">
+                <input type="text" id="name" placeholder="Nome Completo" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <input type="text" id="username" placeholder="Login (ex: joao)" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <input type="password" id="password" placeholder="Senha" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <select id="plan"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none font-bold text-zinc-400 text-xs">
+                    <option value="pro">Plano Profissional (R$ 25,00/mês)</option>
+                    <option value="premium">Plano Premium (R$ 40,00/mês)</option>
+                </select>
+                <div class="flex gap-4 pt-6">
+                    <button type="button" onclick="closeModal()"
+                        class="flex-1 py-3 text-zinc-500 font-bold hover:text-white">Cancelar</button>
+                    <button type="submit" id="saveClientBtn"
+                        class="flex-[2] py-3 bg-red-600 text-white rounded-2xl font-black">SALVAR
+                        ACESSO</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -83,10 +112,15 @@
 
             if (error) {
                 console.error(error);
+                document.getElementById('clientsTable').innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-zinc-600 italic">Erro ao carregar banco de dados.</td></tr>';
                 return;
             }
 
             const table = document.getElementById('clientsTable');
+            if (!clients || clients.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-zinc-600 italic">Nenhum cliente encontrado.</td></tr>';
+                return;
+            }
             table.innerHTML = clients.map(c => `
                     <tr class="hover:bg-zinc-900/50 transition-colors">
                         <td class="px-8 py-6">
@@ -125,6 +159,61 @@
             if (error) alert('Erro ao excluir: ' + error.message);
             else loadClients(searchInput.value);
         }
+
+        document.getElementById('clientForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveClientBtn');
+            const originalText = btn.innerText;
+            btn.innerText = 'PROCESSANDO...';
+            btn.disabled = true;
+
+            const name = document.getElementById('name').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const planId = document.getElementById('plan').value;
+
+            // 1. Criar Cliente
+            const { data: client, error: clientErr } = await sb
+                .from('gestao_clientes')
+                .insert([{ name, username, password }])
+                .select()
+                .single();
+
+            if (clientErr) {
+                alert('Erro ao criar cliente: ' + clientErr.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. Criar Assinatura (30 dias de validade por padrão)
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+
+            const { error: subErr } = await sb
+                .from('gestao_assinaturas')
+                .insert([{
+                    client_id: client.id,
+                    plan_id: planId,
+                    status: 'active',
+                    expiry_date: expiryDate.toISOString()
+                }]);
+
+            if (subErr) {
+                alert('Cliente criado, mas erro na assinatura: ' + subErr.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } else {
+                alert('Cliente e Assinatura criados com sucesso!');
+                closeModal();
+                loadClients();
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        function openModal() { document.getElementById('newClientModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('newClientModal').classList.add('hidden'); }
 
         searchInput.addEventListener('input', (e) => loadClients(e.target.value));
 
