@@ -179,6 +179,10 @@
         const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
         const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
+        // Proteção de Rota
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '/';
+
         async function loadClients() {
             const { data: clients, error } = await sb
                 .from('gestao_clientes')

@@ -211,22 +211,28 @@ export default function App() {
       }
 
       // 2. Client Logic
-      const { data, error } = await syncSupabaseToLocal(); // Actually we need direct check for login
-      // Import supabase for direct check if needed, or use a helper
-      const { data: userData, error: authError } = await (window as any).supabase
-        ? await (window as any).supabase
-          .from('gestao_clientes')
-          .select('*')
-          .eq('username', loginForm.user)
-          .eq('password', loginForm.pass)
-          .single()
-        : { data: null, error: { message: 'Supabase não configurado' } };
+      if (!supabase) {
+        setLoginError('Serviço de autenticação offline.');
+        setIsLoggingIn(false);
+        return;
+      }
+
+      const { data: userData, error: authError } = await (supabase as any)
+        .from('gestao_clientes')
+        .select('*')
+        .eq('username', loginForm.user)
+        .eq('password', loginForm.pass)
+        .single();
 
       if (authError || !userData) {
         setLoginError('Usuário ou senha inválidos.');
       } else {
         localStorage.setItem('gestao_role', 'client');
         localStorage.setItem('gestao_user', JSON.stringify(userData));
+
+        // Sincroniza dados do cliente após login
+        await syncSupabaseToLocal();
+
         setAuthStatus('authenticated');
       }
     } catch (err: any) {
