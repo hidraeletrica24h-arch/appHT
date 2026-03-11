@@ -87,7 +87,7 @@
         const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
         const role = localStorage.getItem('gestao_role');
-        if (role !== 'admin') window.location.href = '../../app/login.html';
+        if (role !== 'admin') window.location.href = '/';
 
         async function loadConfig() {
             const { data, error } = await sb.from('gestao_config').select('*').eq('id', 'main').single();
