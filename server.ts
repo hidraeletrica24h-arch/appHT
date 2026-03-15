@@ -3,9 +3,40 @@ import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Helper to push to Git
+function gitPush(category: string, filename: string) {
+  try {
+    const token = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO;
+    
+    if (!token || !repo) {
+      console.warn("[GitSync] GitHub credentials missing in .env. Skipping push.");
+      return;
+    }
+
+    console.log(`[GitSync] Starting sync for ${category}/${filename}...`);
+    
+    // Configure remote with token if not already set or to ensure it's up to date
+    const remoteUrl = `https://hidraeletrica24h-arch:${token}@github.com/${repo}.git`;
+    
+    // We use try-catch for each step to be safe
+    execSync(`git add .`, { cwd: __dirname });
+    execSync(`git commit -m "Auto-save: ${category}/${filename} [skip ci]"`, { cwd: __dirname });
+    execSync(`git push origin main`, { cwd: __dirname });
+    
+    console.log(`[GitSync] Successfully pushed ${category}/${filename} to GitHub.`);
+  } catch (err: any) {
+    console.error("[GitSync] Error during git sync:", err.message);
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -61,6 +92,10 @@ async function startServer() {
     try {
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
       console.log(`[AutoSave] Saved ${category}/${saveFilename}`);
+      
+      // Auto-sync with Git
+      gitPush(category, saveFilename);
+      
       res.json({ success: true, path: filePath });
     } catch (err) {
       console.error(`[AutoSave] Error saving ${category}:`, err);
