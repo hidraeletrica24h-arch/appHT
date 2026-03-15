@@ -1,9 +1,10 @@
 import React from 'react';
-import { Search, Zap, Droplets, X, Package, Edit2, Save, RotateCcw, Plus, Trash2 } from 'lucide-react';
+import { Search, Zap, Droplets, X, Package, Edit2, Save, RotateCcw, Plus, Trash2, FileUp } from 'lucide-react';
 import { db } from '../db';
 import { Service, Material } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 
 interface CatalogProps {
   category: 'eletrico' | 'hidraulico';
@@ -16,11 +17,29 @@ export function ServiceCatalog({ category }: CatalogProps) {
   const [allMaterials, setAllMaterials] = React.useState<Material[]>([]);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editForm, setEditForm] = React.useState<Service | null>(null);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    setServices(db.getServices().filter(s => s.category === category));
-    setAllMaterials(db.getMaterials());
+    const refresh = () => {
+      const all = db.getServices();
+      const filteredByCategory = all.filter(s => {
+        const cat = s.category?.toLowerCase();
+        if (category === 'eletrico') return cat === 'eletrico' || cat === 'elétrico';
+        if (category === 'hidraulico') return cat === 'hidraulico' || cat === 'hidráulico';
+        return false;
+      });
+      setServices(filteredByCategory);
+    };
+    refresh();
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
   }, [category]);
+
+  React.useEffect(() => {
+    setAllMaterials(db.getMaterials());
+  }, []);
 
   const filtered = services.filter(s =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -50,6 +69,73 @@ export function ServiceCatalog({ category }: CatalogProps) {
     setEditForm(null);
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportStatus({ type: 'loading', message: 'Lendo arquivo Excel...' });
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const dataBuffer = evt.target?.result;
+        const workbook = XLSX.read(dataBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) throw new Error('O arquivo está vazio.');
+
+        setImportStatus({ type: 'loading', message: `Processando ${jsonData.length} serviços...` });
+
+        const servicesToImport: Service[] = [];
+        jsonData.forEach((row) => {
+          const keys = Object.keys(row);
+          const findValue = (possibleNames: string[]) => {
+            const key = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
+            return key ? row[key] : null;
+          };
+
+          const name = findValue(['serviço', 'servico', 'nome', 'descrição', 'descricao', 'name', 'service']);
+          const priceStr = findValue(['preço', 'preco', 'valor', 'price', 'custo', 'unitário', 'unitario', 'base']);
+
+          if (name) {
+            const price = parseFloat(priceStr?.toString().replace(',', '.') || '0');
+            servicesToImport.push({
+              id: crypto.randomUUID(),
+              name: name.toString(),
+              category: category,
+              basePrice: isNaN(price) ? 0 : price,
+              suggestedMaterials: [],
+            });
+          }
+        });
+
+        if (servicesToImport.length > 0) {
+          await db.saveServicesBatch(servicesToImport);
+          setImportStatus({ 
+            type: 'success', 
+            message: `${servicesToImport.length} serviços importados com sucesso!` 
+          });
+          setTimeout(() => setImportStatus(null), 3000);
+        } else {
+          throw new Error('Nenhum serviço válido encontrado.');
+        }
+      } catch (error: any) {
+        setImportStatus({ type: 'error', message: error.message || 'Erro ao processar arquivo.' });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -59,7 +145,23 @@ export function ServiceCatalog({ category }: CatalogProps) {
           </h2>
           <p className="text-zinc-400">Catálogo de serviços com valores médios (Porto Alegre).</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            title="Importar serviços via Excel"
+          >
+            <FileUp size={18} />
+            {isImporting ? 'Importando...' : 'Importar XLSX'}
+          </button>
           <button
             onClick={() => {
               const newService: Service = {
@@ -273,6 +375,54 @@ export function ServiceCatalog({ category }: CatalogProps) {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Popup de Status da Importação */}
+      <AnimatePresence>
+        {importStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 right-8 z-[60]"
+          >
+            <div className={cn(
+              "px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-md",
+              importStatus.type === 'loading' ? "bg-zinc-900/90 border-zinc-700 text-white" :
+              importStatus.type === 'success' ? "bg-emerald-950/90 border-emerald-500/50 text-emerald-400" :
+              "bg-red-950/90 border-red-500/50 text-red-400"
+            )}>
+              {importStatus.type === 'loading' && (
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              )}
+              {importStatus.type === 'success' && (
+                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-emerald-950">
+                  <Save size={12} />
+                </div>
+              )}
+              {importStatus.type === 'error' && (
+                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-red-950">
+                  <X size={12} />
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-50">
+                  {importStatus.type === 'loading' ? 'Importando' : 
+                   importStatus.type === 'success' ? 'Sucesso' : 'Erro'}
+                </span>
+                <span className="text-sm font-medium">{importStatus.message}</span>
+              </div>
+              {importStatus.type !== 'loading' && (
+                <button 
+                  onClick={() => setImportStatus(null)}
+                  className="ml-4 p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

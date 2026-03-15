@@ -380,6 +380,32 @@ export const db = {
       }).then(({ error }) => { if (error) console.error("Services Erro:", error); });
     }
   },
+  saveServicesBatch: async (newServices: Service[]) => {
+    const services = db.getServices();
+    const updatedServices = [...services];
+    
+    newServices.forEach(service => {
+      const index = updatedServices.findIndex(s => s.id === service.id);
+      if (index >= 0) updatedServices[index] = service;
+      else updatedServices.push(service);
+    });
+
+    db.setSync(STORAGE_KEYS.SERVICES, updatedServices);
+    triggerEvent();
+
+    if (supabase && newServices.length > 0) {
+      const { error } = await supabase.from('services').upsert(
+        newServices.map(s => ({
+          id: s.id,
+          name: s.name,
+          category: s.category,
+          base_price: s.basePrice || 0,
+          suggested_materials: s.suggestedMaterials || []
+        }))
+      );
+      if (error) console.error("Services Batch Erro:", error);
+    }
+  },
   deleteService: (id: string) => {
     const services = db.getServices();
     db.setSync(STORAGE_KEYS.SERVICES, services.filter(s => s.id !== id));
@@ -403,6 +429,32 @@ export const db = {
       supabase.from('packages').upsert({
         id: pkg.id, name: pkg.name, description: pkg.description, price: pkg.price, items: pkg.items
       }).then(({ error }) => { if (error) console.error("Packages Erro:", error); });
+    }
+  },
+  savePackagesBatch: async (newPackages: any[]) => {
+    const pkgs = db.getPackages();
+    const updatedPkgs = [...pkgs];
+    
+    newPackages.forEach(pkg => {
+      const index = updatedPkgs.findIndex(p => p.id === pkg.id);
+      if (index >= 0) updatedPkgs[index] = pkg;
+      else updatedPkgs.push(pkg);
+    });
+
+    db.setSync(STORAGE_KEYS.PACKAGES, updatedPkgs);
+    triggerEvent();
+
+    if (supabase && newPackages.length > 0) {
+      const { error } = await supabase.from('packages').upsert(
+        newPackages.map(pkg => ({
+          id: pkg.id,
+          name: pkg.name,
+          description: pkg.description,
+          price: pkg.price || 0,
+          items: pkg.items || []
+        }))
+      );
+      if (error) console.error("Packages Batch Erro:", error);
     }
   },
   deletePackage: (id: string) => {

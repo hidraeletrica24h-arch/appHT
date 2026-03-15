@@ -17,6 +17,7 @@ export function MaterialCatalog({ category }: CatalogProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editForm, setEditForm] = React.useState<Material | null>(null);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -71,45 +72,79 @@ export function MaterialCatalog({ category }: CatalogProps) {
     if (!file) return;
 
     setIsImporting(true);
+    setImportStatus({ type: 'loading', message: 'Lendo arquivo Excel...' });
+
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws) as any[];
+        const dataBuffer = evt.target?.result;
+        const workbook = XLSX.read(dataBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) {
+          throw new Error('O arquivo está vazio ou não possui dados válidos.');
+        }
+
+        setImportStatus({ type: 'loading', message: `Processando ${jsonData.length} itens...` });
 
         const materialsToImport: Material[] = [];
-        data.forEach((row) => {
-          const name = row.Material || row.Nome || row.name;
-          const price = parseFloat(row.Preço || row.Valor || row.price || 0);
-          const unit = row.Unidade || row.unit || 'un';
+        
+        jsonData.forEach((row) => {
+          // Busca flexível de colunas (ignora maiúsculas/minúsculas)
+          const keys = Object.keys(row);
+          const findValue = (possibleNames: string[]) => {
+            const key = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
+            return key ? row[key] : null;
+          };
+
+          const name = findValue(['material', 'nome', 'descrição', 'descricao', 'name', 'item']);
+          const priceStr = findValue(['preço', 'preco', 'valor', 'price', 'custo', 'unitário', 'unitario']);
+          const unit = findValue(['unidade', 'unid', 'unid.', 'unit', 'u']);
 
           if (name) {
+            const price = parseFloat(priceStr?.toString().replace(',', '.') || '0');
             materialsToImport.push({
               id: crypto.randomUUID(),
               name: name.toString(),
               category: category,
               price: isNaN(price) ? 0 : price,
-              unit: unit.toString(),
+              unit: (unit || 'un').toString(),
             });
           }
         });
 
         if (materialsToImport.length > 0) {
-          db.saveMaterialsBatch(materialsToImport);
-          alert(`${materialsToImport.length} materiais importados com sucesso!`);
+          await db.saveMaterialsBatch(materialsToImport);
+          setImportStatus({ 
+            type: 'success', 
+            message: `${materialsToImport.length} materiais importados com sucesso!` 
+          });
+          
+          // Limpa o status após 3 segundos
+          setTimeout(() => setImportStatus(null), 3000);
+        } else {
+          throw new Error('Nenhum material válido encontrado no arquivo. Verifique os nomes das colunas.');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Erro ao importar arquivo:', error);
-        alert('Erro ao processar o arquivo. Verifique se o formato está correto.');
+        setImportStatus({ 
+          type: 'error', 
+          message: error.message || 'Erro ao processar o arquivo. Verifique o formato.' 
+        });
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-    reader.readAsBinaryString(file);
+
+    reader.onerror = () => {
+      setImportStatus({ type: 'error', message: 'Erro ao ler o arquivo físico.' });
+      setIsImporting(false);
+    };
+
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -215,6 +250,54 @@ export function MaterialCatalog({ category }: CatalogProps) {
           </table>
         </div>
       </div>
+
+      {/* Popup de Status da Importação */}
+      <AnimatePresence>
+        {importStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 right-8 z-[60]"
+          >
+            <div className={cn(
+              "px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-md",
+              importStatus.type === 'loading' ? "bg-zinc-900/90 border-zinc-700 text-white" :
+              importStatus.type === 'success' ? "bg-emerald-950/90 border-emerald-500/50 text-emerald-400" :
+              "bg-red-950/90 border-red-500/50 text-red-400"
+            )}>
+              {importStatus.type === 'loading' && (
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              )}
+              {importStatus.type === 'success' && (
+                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-emerald-950">
+                  <Save size={12} />
+                </div>
+              )}
+              {importStatus.type === 'error' && (
+                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-red-950">
+                  <X size={12} />
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-50">
+                  {importStatus.type === 'loading' ? 'Importando' : 
+                   importStatus.type === 'success' ? 'Sucesso' : 'Erro'}
+                </span>
+                <span className="text-sm font-medium">{importStatus.message}</span>
+              </div>
+              {importStatus.type !== 'loading' && (
+                <button 
+                  onClick={() => setImportStatus(null)}
+                  className="ml-4 p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isEditing && editForm && (

@@ -101,6 +101,25 @@ CREATE POLICY "Admin controla assinaturas" ON public.gestao_assinaturas FOR ALL 
 
 
 -- ╔══════════════════════════════════════════════════════════╗
+-- ║  PARTE 5: HISTÓRICO DE PAGAMENTOS (Relatórios)          ║
+-- ╚══════════════════════════════════════════════════════════╝
+
+CREATE TABLE IF NOT EXISTS public.gestao_pagamentos (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    client_id UUID REFERENCES public.gestao_clientes_as(id) ON DELETE SET NULL,
+    client_name TEXT,
+    amount DECIMAL(10,2) NOT NULL,
+    method TEXT, -- 'pix', 'card', etc.
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE IF EXISTS public.gestao_pagamentos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Admin vê pagamentos" ON public.gestao_pagamentos;
+CREATE POLICY "Admin vê pagamentos" ON public.gestao_pagamentos FOR ALL USING (true);
+
+
+-- ╔══════════════════════════════════════════════════════════╗
 -- ║  PARTE 5: CONFIGURAÇÕES (PIX / PAGAMENTOS)              ║
 -- ╚══════════════════════════════════════════════════════════╝
 

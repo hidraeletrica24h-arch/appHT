@@ -1,5 +1,9 @@
+import React from 'react';
+import { ClipboardList, Zap, Droplets, CheckCircle2, Plus, Edit2, Trash2, X, Save, FileUp, RotateCcw } from 'lucide-react';
+import { formatCurrency, cn } from '../lib/utils';
 import { db } from '../db';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 
 const defaultPackages = [
   {
@@ -69,6 +73,14 @@ export function Packages() {
   const [isEditing, setIsEditing] = React.useState(false);
   const [editForm, setEditForm] = React.useState<any | null>(null);
   const [newItemText, setNewItemText] = React.useState('');
+  const [isImporting, setIsImporting] = React.useState(false);
+  const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const refresh = () => {
+    const loaded = db.getPackages();
+    setPackages(loaded);
+  };
 
   React.useEffect(() => {
     let loaded = db.getPackages();
@@ -77,7 +89,82 @@ export function Packages() {
       loaded = db.getPackages();
     }
     setPackages(loaded);
+
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
   }, []);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportStatus({ type: 'loading', message: 'Lendo arquivo Excel...' });
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const dataBuffer = evt.target?.result;
+        const workbook = XLSX.read(dataBuffer, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (jsonData.length === 0) throw new Error('O arquivo está vazio.');
+
+        setImportStatus({ type: 'loading', message: `Processando ${jsonData.length} pacotes...` });
+
+        const packagesToImport: any[] = [];
+        jsonData.forEach((row) => {
+          const keys = Object.keys(row);
+          const findValue = (possibleNames: string[]) => {
+            const key = keys.find(k => possibleNames.includes(k.toLowerCase().trim()));
+            return key ? row[key] : null;
+          };
+
+          const name = findValue(['pacote', 'nome', 'descrição', 'descricao', 'name', 'package']);
+          const priceStr = findValue(['preço', 'preco', 'valor', 'price', 'custo', 'total']);
+          const category = findValue(['categoria', 'tipo', 'category', 'type']) || 'geral';
+          const itemsStr = findValue(['itens', 'lista', 'items', 'serviços', 'servicos']);
+
+          if (name) {
+            const price = parseFloat(priceStr?.toString().replace(',', '.') || '0');
+            const items = itemsStr ? itemsStr.toString().split(/[,;|\n]/).map((s: string) => s.trim()).filter(Boolean) : [];
+            
+            packagesToImport.push({
+              id: crypto.randomUUID(),
+              name: name.toString(),
+              category: category.toString().toLowerCase().includes('elet') ? 'eletrico' : 
+                        category.toString().toLowerCase().includes('hidr') ? 'hidraulico' : 'geral',
+              price: isNaN(price) ? 0 : price,
+              items: items,
+            });
+          }
+        });
+
+        if (packagesToImport.length > 0) {
+          await db.savePackagesBatch(packagesToImport);
+          setImportStatus({ 
+            type: 'success', 
+            message: `${packagesToImport.length} pacotes importados com sucesso!` 
+          });
+          setTimeout(() => setImportStatus(null), 3000);
+        } else {
+          throw new Error('Nenhum pacote válido encontrado.');
+        }
+      } catch (error: any) {
+        setImportStatus({ type: 'error', message: error.message || 'Erro ao processar arquivo.' });
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   const handleSave = () => {
     if (editForm) {
@@ -117,24 +204,42 @@ export function Packages() {
           <h2 className="text-3xl font-bold text-white">Pacotes de Serviços</h2>
           <p className="text-zinc-400">Soluções completas com preços fechados para facilitar a venda.</p>
         </div>
-        <button
-          onClick={() => {
-            setEditForm({
-              id: crypto.randomUUID(),
-              name: '',
-              category: 'eletrico',
-              price: 0,
-              items: [],
-              color: 'text-red-500',
-              bg: 'bg-red-500/10'
-            });
-            setIsEditing(true);
-          }}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
-        >
-          <Plus size={18} />
-          Novo Pacote
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            title="Importar pacotes via Excel"
+          >
+            <FileUp size={18} />
+            {isImporting ? 'Importando...' : 'Importar XLSX'}
+          </button>
+          <button
+            onClick={() => {
+              setEditForm({
+                id: crypto.randomUUID(),
+                name: '',
+                category: 'eletrico',
+                price: 0,
+                items: [],
+                color: 'text-red-500',
+                bg: 'bg-red-500/10'
+              });
+              setIsEditing(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
+          >
+            <Plus size={18} />
+            Novo Pacote
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -298,10 +403,53 @@ export function Packages() {
         )}
       </AnimatePresence>
 
+      {/* Popup de Status da Importação */}
+      <AnimatePresence>
+        {importStatus && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-8 right-8 z-[60]"
+          >
+            <div className={cn(
+              "px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl backdrop-blur-md",
+              importStatus.type === 'loading' ? "bg-zinc-900/90 border-zinc-700 text-white" :
+              importStatus.type === 'success' ? "bg-emerald-950/90 border-emerald-500/50 text-emerald-400" :
+              "bg-red-950/90 border-red-500/50 text-red-400"
+            )}>
+              {importStatus.type === 'loading' && (
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              )}
+              {importStatus.type === 'success' && (
+                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-emerald-950">
+                  <Save size={12} />
+                </div>
+              )}
+              {importStatus.type === 'error' && (
+                <div className="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-red-950">
+                  <X size={12} />
+                </div>
+              )}
+              <div className="flex flex-col">
+                <span className="text-xs font-bold uppercase tracking-wider opacity-50">
+                  {importStatus.type === 'loading' ? 'Importando' : 
+                   importStatus.type === 'success' ? 'Sucesso' : 'Erro'}
+                </span>
+                <span className="text-sm font-medium">{importStatus.message}</span>
+              </div>
+              {importStatus.type !== 'loading' && (
+                <button 
+                  onClick={() => setImportStatus(null)}
+                  className="ml-4 p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-import React from 'react';
-import { ClipboardList, Zap, Droplets, CheckCircle2, Plus, Edit2, Trash2, X, Save } from 'lucide-react';
-import { formatCurrency, cn } from '../lib/utils';
