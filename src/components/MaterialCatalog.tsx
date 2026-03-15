@@ -1,9 +1,10 @@
 import React from 'react';
-import { Search, Package, Wrench, Edit2, X, Save, RotateCcw, Plus, Trash2 } from 'lucide-react';
+import { Search, Package, Wrench, Edit2, X, Save, RotateCcw, Plus, Trash2, FileUp } from 'lucide-react';
 import { db } from '../db';
 import { Material } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 
 interface CatalogProps {
   category: 'eletrico' | 'hidraulico';
@@ -15,9 +16,24 @@ export function MaterialCatalog({ category }: CatalogProps) {
   const [selectedMaterial, setSelectedMaterial] = React.useState<Material | null>(null);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editForm, setEditForm] = React.useState<Material | null>(null);
+  const [isImporting, setIsImporting] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    setMaterials(db.getMaterials().filter(m => m.category === category));
+    const refresh = () => {
+      const all = db.getMaterials();
+      const filteredByCategory = all.filter(m => {
+        // Normalização robusta para o filtro de categoria
+        const cat = m.category?.toLowerCase();
+        if (category === 'eletrico') return cat === 'eletrico' || cat === 'elétrico';
+        if (category === 'hidraulico') return cat === 'hidraulico' || cat === 'hidráulico';
+        return false;
+      });
+      setMaterials(filteredByCategory);
+    };
+    refresh();
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
   }, [category]);
 
   const filtered = materials.filter(m =>
@@ -46,6 +62,56 @@ export function MaterialCatalog({ category }: CatalogProps) {
     setEditForm(null);
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws) as any[];
+
+        const materialsToImport: Material[] = [];
+        data.forEach((row) => {
+          const name = row.Material || row.Nome || row.name;
+          const price = parseFloat(row.Preço || row.Valor || row.price || 0);
+          const unit = row.Unidade || row.unit || 'un';
+
+          if (name) {
+            materialsToImport.push({
+              id: crypto.randomUUID(),
+              name: name.toString(),
+              category: category,
+              price: isNaN(price) ? 0 : price,
+              unit: unit.toString(),
+            });
+          }
+        });
+
+        if (materialsToImport.length > 0) {
+          db.saveMaterialsBatch(materialsToImport);
+          alert(`${materialsToImport.length} materiais importados com sucesso!`);
+        }
+      } catch (error) {
+        console.error('Erro ao importar arquivo:', error);
+        alert('Erro ao processar o arquivo. Verifique se o formato está correto.');
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -55,7 +121,23 @@ export function MaterialCatalog({ category }: CatalogProps) {
           </h2>
           <p className="text-zinc-400">Catálogo de materiais e insumos.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={isImporting}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+            title="Importar lista de materiais via Excel"
+          >
+            <FileUp size={18} />
+            {isImporting ? 'Importando...' : 'Importar XLSX'}
+          </button>
           <button
             onClick={() => {
               setEditForm({

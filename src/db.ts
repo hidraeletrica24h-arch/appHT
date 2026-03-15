@@ -317,6 +317,33 @@ export const db = {
       }).then(({ error }) => { if (error) console.error("Materials Erro:", error); });
     }
   },
+  saveMaterialsBatch: async (newMaterials: Material[]) => {
+    const materials = db.getMaterials();
+    const updatedMaterials = [...materials];
+    
+    newMaterials.forEach(material => {
+      const index = updatedMaterials.findIndex(m => m.id === material.id);
+      if (index >= 0) updatedMaterials[index] = material;
+      else updatedMaterials.push(material);
+    });
+
+    db.setSync(STORAGE_KEYS.MATERIALS, updatedMaterials);
+    triggerEvent();
+
+    if (supabase && newMaterials.length > 0) {
+      const { error } = await supabase.from('materials').upsert(
+        newMaterials.map(m => ({
+          id: m.id,
+          name: m.name,
+          category: m.category,
+          price: m.price || 0,
+          unit: m.unit || 'un',
+          "order": m.order || 0
+        }))
+      );
+      if (error) console.error("Materials Batch Erro:", error);
+    }
+  },
   deleteMaterial: (id: string) => {
     const materials = db.getMaterials();
     db.setSync(STORAGE_KEYS.MATERIALS, materials.filter(m => m.id !== id));
