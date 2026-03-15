@@ -97,23 +97,71 @@
         if (role !== 'admin') window.location.href = '/';
 
         async function loadStats() {
-            const { data: subs, error } = await sb
-                .from('gestao_assinaturas')
-                .select('*, gestao_planos(price)')
-                .eq('status', 'active');
+            try {
+                // 1. Carregar Assinaturas Ativas e Planos
+                const { data: subs, error: subsError } = await sb
+                    .from('gestao_assinaturas')
+                    .select('*, gestao_planos(price)')
+                    .eq('status', 'active');
 
-            if (error) {
-                console.error(error);
-                return;
+                if (subsError) throw subsError;
+
+                // 2. Carregar Histórico de Pagamentos (se a tabela existir)
+                let payments = [];
+                const { data: payData, error: payError } = await sb
+                    .from('gestao_pagamentos')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (!payError) payments = payData;
+
+                const activeCount = subs.length;
+                const monthlyRevenue = subs.reduce((acc, sub) => {
+                    const price = sub.gestao_planos?.price || 0;
+                    return acc + price;
+                }, 0);
+
+                // Cálculo de ganhos totais baseados nos pagamentos reais ou projeção
+                const totalRevenue = payments.length > 0 
+                    ? payments.reduce((acc, p) => acc + (p.amount || 0), 0)
+                    : monthlyRevenue * 12;
+
+                document.getElementById('active-subs').innerText = activeCount;
+                document.getElementById('monthly-revenue').innerText = `R$ ${monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+                document.getElementById('total-revenue').innerText = `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+
+                // 3. Atualizar Lista de Pagamentos Recentes
+                const paymentsList = document.querySelector('.card.rounded-3xl.p-8 .space-y-4');
+                if (payments.length > 0) {
+                    paymentsList.innerHTML = payments.map(p => `
+                        <div class="flex items-center justify-between p-4 bg-zinc-950 rounded-2xl border border-zinc-800">
+                            <div class="flex items-center gap-4">
+                                <div class="w-10 h-10 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center font-bold text-[10px]">
+                                    ${p.method?.toUpperCase() || 'PGTO'}
+                                </div>
+                                <div>
+                                    <p class="font-bold">Cliente: ${p.client_name || 'N/A'}</p>
+                                    <p class="text-xs text-zinc-500">${p.description || 'Assinatura'}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-black text-white">R$ ${(p.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                <p class="text-[10px] text-zinc-500">${new Date(p.created_at).toLocaleString('pt-BR')}</p>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    paymentsList.innerHTML = '<p class="text-zinc-500 text-center py-4">Nenhum pagamento registrado ainda.</p>';
+                }
+
+            } catch (err) {
+                console.error('Erro ao carregar relatórios:', err);
+                // Fallback para valores zerados em caso de erro de conexão/tabela
+                document.getElementById('active-subs').innerText = '0';
+                document.getElementById('monthly-revenue').innerText = 'R$ 0,00';
+                document.getElementById('total-revenue').innerText = 'R$ 0,00';
             }
-
-            const activeCount = subs.length;
-            const monthlyRevenue = subs.reduce((acc, sub) => acc + (sub.gestao_planos?.price || 0), 0);
-            const totalRevenue = monthlyRevenue * 12; // Simulação de projeção
-
-            document.getElementById('active-subs').innerText = activeCount;
-            document.getElementById('monthly-revenue').innerText = `R$ ${monthlyRevenue.toFixed(2).replace('.', ',')}`;
-            document.getElementById('total-revenue').innerText = `R$ ${totalRevenue.toFixed(2).replace('.', ',')}`;
         }
 
         loadStats();

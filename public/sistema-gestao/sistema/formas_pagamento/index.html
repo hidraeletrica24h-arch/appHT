@@ -50,7 +50,7 @@
                         <input id="pix_key" value="51997222728"
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 mt-1 text-sm outline-none focus:border-red-500">
                     </div>
-                    <button
+                    <button onclick="updatePix()"
                         class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-xs">ATUALIZAR
                         CHAVE</button>
                 </div>
@@ -73,7 +73,7 @@
                         <input id="card_link" placeholder="https://pagamento.com/..."
                             class="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 mt-1 text-sm outline-none focus:border-red-500">
                     </div>
-                    <button
+                    <button onclick="updateCard()"
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-xs">ATUALIZAR
                         LINK</button>
                 </div>
@@ -110,12 +110,6 @@
             if (error) alert('Erro ao atualizar Link: ' + error.message);
             else alert('Link de pagamento atualizado com sucesso!');
         }
-
-        // Adicionar eventos aos botões
-        document.querySelectorAll('button').forEach(btn => {
-            if (btn.innerText.includes('PIX')) btn.onclick = updatePix;
-            if (btn.innerText.includes('LINK')) btn.onclick = updateCard;
-        });
 
         loadConfig();
     </script>

@@ -68,6 +68,7 @@
             <h2 class="text-2xl font-black font-outfit mb-6">Cadastrar <span class="text-red-500">Novo Cliente</span>
             </h2>
             <form id="clientForm" class="space-y-4">
+                <input type="hidden" id="clientId">
                 <input type="text" id="name" placeholder="Nome Completo" required
                     class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
                 <input type="text" id="username" placeholder="Login (ex: joao)" required
@@ -144,7 +145,7 @@
                         </td>
                         <td class="px-8 py-6 text-right">
                             <div class="flex justify-end gap-3">
-                                <button class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button onclick="editClient('${c.id}')" class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
                                 <button onclick="deleteClient('${c.id}')" class="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                             </div>
                         </td>
@@ -162,6 +163,7 @@
 
         document.getElementById('clientForm').onsubmit = async (e) => {
             e.preventDefault();
+            const clientId = document.getElementById('clientId').value;
             const btn = document.getElementById('saveClientBtn');
             const originalText = btn.innerText;
             btn.innerText = 'PROCESSANDO...';
@@ -172,48 +174,108 @@
             const password = document.getElementById('password').value;
             const planId = document.getElementById('plan').value;
 
-            // 1. Criar Cliente
-            const { data: client, error: clientErr } = await sb
-                .from('gestao_clientes_as')
-                .insert([{ name, username, password }])
-                .select()
-                .single();
+            if (clientId) {
+                // ATUALIZAR CLIENTE
+                const { error: clientErr } = await sb
+                    .from('gestao_clientes_as')
+                    .update({ name, username, password })
+                    .eq('id', clientId);
 
-            if (clientErr) {
-                alert('Erro ao criar cliente: ' + clientErr.message);
-                btn.innerText = originalText;
-                btn.disabled = false;
-                return;
-            }
+                if (clientErr) {
+                    alert('Erro ao atualizar cliente: ' + clientErr.message);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
 
-            // 2. Criar Assinatura (30 dias de validade por padrão)
-            const expiryDate = new Date();
-            expiryDate.setDate(expiryDate.getDate() + 30);
+                // Atualizar assinatura
+                const { error: subErr } = await sb
+                    .from('gestao_assinaturas')
+                    .update({ plan_id: planId })
+                    .eq('client_id', clientId);
 
-            const { error: subErr } = await sb
-                .from('gestao_assinaturas')
-                .insert([{
-                    client_id: client.id,
-                    plan_id: planId,
-                    status: 'active',
-                    expiry_date: expiryDate.toISOString()
-                }]);
-
-            if (subErr) {
-                alert('Cliente criado, mas erro na assinatura: ' + subErr.message);
-                btn.innerText = originalText;
-                btn.disabled = false;
+                if (subErr) {
+                    alert('Cliente atualizado, mas erro na assinatura: ' + subErr.message);
+                } else {
+                    alert('Cliente e Assinatura atualizados com sucesso!');
+                    closeModal();
+                    loadClients();
+                }
             } else {
-                alert('Cliente e Assinatura criados com sucesso!');
-                closeModal();
-                loadClients();
-                btn.innerText = originalText;
-                btn.disabled = false;
+                // CRIAR NOVO CLIENTE
+                const { data: client, error: clientErr } = await sb
+                    .from('gestao_clientes_as')
+                    .insert([{ name, username, password }])
+                    .select()
+                    .single();
+
+                if (clientErr) {
+                    alert('Erro ao criar cliente: ' + clientErr.message);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 30);
+
+                const { error: subErr } = await sb
+                    .from('gestao_assinaturas')
+                    .insert([{
+                        client_id: client.id,
+                        plan_id: planId,
+                        status: 'active',
+                        expiry_date: expiryDate.toISOString()
+                    }]);
+
+                if (subErr) {
+                    alert('Cliente criado, mas erro na assinatura: ' + subErr.message);
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                } else {
+                    alert('Cliente e Assinatura criados com sucesso!');
+                    closeModal();
+                    loadClients();
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
             }
         };
 
+        async function editClient(id) {
+            const { data: client, error } = await sb
+                .from('gestao_clientes_as')
+                .select(`
+                    *,
+                    gestao_assinaturas (
+                        plan_id
+                    )
+                `)
+                .eq('id', id)
+                .single();
+
+            if (error) {
+                alert('Erro ao carregar dados: ' + error.message);
+                return;
+            }
+
+            document.getElementById('clientId').value = client.id;
+            document.getElementById('name').value = client.name;
+            document.getElementById('username').value = client.username;
+            document.getElementById('password').value = client.password;
+            document.getElementById('plan').value = client.gestao_assinaturas?.[0]?.plan_id || 'pro';
+
+            document.getElementById('saveClientBtn').innerText = 'ATUALIZAR ACESSO';
+            openModal();
+        }
+
         function openModal() { document.getElementById('newClientModal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('newClientModal').classList.add('hidden'); }
+        function closeModal() {
+            document.getElementById('newClientModal').classList.add('hidden');
+            document.getElementById('clientForm').reset();
+            document.getElementById('clientId').value = '';
+            document.getElementById('saveClientBtn').innerText = 'SALVAR ACESSO';
+        }
 
         searchInput.addEventListener('input', (e) => loadClients(e.target.value));
 

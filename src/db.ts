@@ -227,7 +227,28 @@ export const db = {
     triggerEvent();
 
     if (supabase) {
+      // 1. Verificar se existem Ordens de Serviço vinculadas
+      const { data: linkedOrders } = await supabase
+        .from('service_orders')
+        .select('id')
+        .eq('budget_id', id);
+
+      if (linkedOrders && linkedOrders.length > 0) {
+        if (!confirm(`Este orçamento possui ${linkedOrders.length} Ordem(ns) de Serviço vinculada(s). Deseja excluir o orçamento e todas as suas ordens de serviço?`)) {
+          return;
+        }
+        // Excluir as ordens de serviço vinculadas primeiro (para evitar erro de FK)
+        await supabase.from('service_orders').delete().eq('budget_id', id);
+        
+        // Atualizar o estado local das ordens de serviço também
+        const orders = db.getOrders();
+        db.setSync(STORAGE_KEYS.SERVICE_ORDERS, orders.filter(o => o.budgetId !== id));
+      }
+
+      // 2. Excluir itens do orçamento
       await supabase.from('budget_items').delete().eq('budget_id', id);
+
+      // 3. Excluir o orçamento
       const { error } = await supabase.from('budgets').delete().eq('id', id);
       if (error) console.error("Budget Delete Erro:", error);
     }

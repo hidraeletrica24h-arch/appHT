@@ -251,19 +251,98 @@ export function Budgets() {
     }
   };
 
-  const generateExcel = (budget: Budget) => {
-    const materials = budget.items.filter(i => i.type === 'material');
-    const data = materials.map(m => ({
-      'Material': m.name,
-      'Quantidade': m.quantity,
-      'Valor Unitário': m.unitPrice,
-      'Valor Total': m.totalPrice
-    }));
+  const generateExcel = (budget: Budget, type: 'client' | 'supplier') => {
+    try {
+      const materials = budget.items.filter(i => i.type === 'material');
+      const client = db.getClients().find(c => c.id === budget.clientId);
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Materiais");
-    XLSX.writeFile(wb, `materiais_${budget.clientName.replace(/\s+/g, '_')}.xlsx`);
+      // 1. Preparar dados com Unidade e Código
+      const mainData = materials.map(m => {
+        const materialInfo = allMaterials.find(mat => mat.id === m.itemId);
+        const unit = materialInfo?.unit || 'un';
+        const code = m.itemId.slice(0, 8).toUpperCase();
+
+        if (type === 'client') {
+          return [code, m.name, m.quantity, unit, m.unitPrice, m.totalPrice];
+        } else {
+          return [code, m.name, m.quantity, unit];
+        }
+      });
+
+      // 2. Definir Cabeçalhos e Título
+      const headers = type === 'client'
+        ? ["CÓDIGO", "MATERIAL", "QTD", "UNID.", "PREÇO (R$)", "TOTAL (R$)"]
+        : ["CÓDIGO", "MATERIAL", "QTD", "UNID."];
+
+      const title = type === 'client' ? "ORÇAMENTO DE MATERIAIS" : "PEDIDO DE COMPRA DE MATERIAIS";
+
+      // 3. Estruturar a Planilha (Array of Arrays)
+      let aoaData: any[][] = [];
+
+      // Cabeçalho da Empresa (Fixo)
+      aoaData.push(["HIDRAELÉTRICA PRO"]);
+      aoaData.push(["SERVIÇOS ELÉTRICOS E HIDRÁULICOS"]);
+      aoaData.push(["CONTATO: (51) 99722-2728"]);
+      aoaData.push([""]);
+
+      // Informações do Documento e Cliente
+      aoaData.push([title.toUpperCase()]);
+      aoaData.push(["DATA:", formatDate(budget.createdAt), "", "ID:", budget.id.slice(0, 8).toUpperCase()]);
+
+      if (type === 'client') {
+        aoaData.push(["CLIENTE:", budget.clientName]);
+        aoaData.push(["ENDEREÇO:", client?.address || 'N/A']);
+        aoaData.push(["CIDADE:", client?.city || 'N/A']);
+      }
+
+      aoaData.push([""]); // Espaço
+      aoaData.push(headers); // Cabeçalho da Tabela
+      aoaData.push(...mainData); // Dados da Tabela
+
+      if (type === 'client') {
+        aoaData.push([""]);
+        aoaData.push(["", "", "", "", "TOTAL MATERIAIS:", budget.materialsTotal]);
+      }
+
+      // 4. Criar a Planilha
+      const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+      // 5. Configurações Visuais e de Impressão
+      // Largura das colunas
+      const wscols = type === 'client'
+        ? [
+          { wch: 12 }, // Código
+          { wch: 45 }, // Material
+          { wch: 8 },  // Qtd
+          { wch: 8 },  // Unid
+          { wch: 15 }, // Preço
+          { wch: 15 }, // Total
+        ]
+        : [
+          { wch: 12 }, // Código
+          { wch: 55 }, // Material
+          { wch: 10 }, // Qtd
+          { wch: 10 }, // Unid
+        ];
+      ws['!cols'] = wscols;
+
+      // Configurações de Impressão (Margens e A4)
+      ws['!margins'] = { left: 0.7, right: 0.7, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
+      
+      // 6. Criar o Workbook e Salvar
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Materiais");
+      
+      const safeName = budget.clientName.replace(/\s+/g, '_').toLowerCase();
+      const fileName = type === 'client' 
+        ? `orcamento_materiais_${safeName}.xlsx` 
+        : `pedido_fornecedor_${new Date().getTime()}.xlsx`;
+        
+      XLSX.writeFile(wb, fileName);
+    } catch (error) {
+      console.error('Erro ao gerar Excel:', error);
+      alert('Ocorreu um erro ao gerar a planilha Excel profissional.');
+    }
   };
 
   return (
@@ -348,11 +427,18 @@ export function Budgets() {
                   <Download size={18} />
                 </button>
                 <button
-                  onClick={() => generateExcel(budget)}
+                  onClick={() => generateExcel(budget, 'client')}
                   className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                  title="Exportar Materiais"
+                  title="Exportar para Cliente (com valor)"
                 >
                   <FileSpreadsheet size={18} />
+                </button>
+                <button
+                  onClick={() => generateExcel(budget, 'supplier')}
+                  className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                  title="Exportar para Fornecedor (sem valor)"
+                >
+                  <Package size={18} />
                 </button>
                 <button
                   onClick={() => {
