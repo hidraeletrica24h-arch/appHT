@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Clientes | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@400;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #050505;
+            color: #fff;
+        }
+
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .card {
+            background: #0f0f12;
+            border: 1px solid #1a1a1a;
+        }
+    </style>
+</head>
+
+<body class="p-8">
+    <div class="max-w-6xl mx-auto space-y-8">
+        <header class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-outfit font-black">Área de <span class="text-red-500">Clientes</span></h1>
+                <p class="text-zinc-500">Gerenciamento completo de acessos e bancos de dados.</p>
+            </div>
+            <a href="../admin/index.html" class="text-zinc-500 hover:text-white text-sm">← Painel Principal</a>
+        </header>
+
+        <div class="flex gap-4 mb-6">
+            <input type="text" placeholder="Buscar por nome ou usuário..."
+                class="flex-1 bg-zinc-900 border border-zinc-800 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600/30">
+            <button onclick="openModal()"
+                class="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-sm transition-all">+
+                Novo</button>
+        </div>
+
+        <div class="card rounded-3xl overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-zinc-950/50 border-b border-zinc-800">
+                    <tr class="text-[10px] text-zinc-500 uppercase tracking-[0.2em]">
+                        <th class="px-8 py-5">Cliente / Pasta</th>
+                        <th class="px-8 py-5">Criação</th>
+                        <th class="px-8 py-5">Status</th>
+                        <th class="px-8 py-5 text-right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="clientsTable" class="divide-y divide-zinc-800">
+                    <!-- Clientes dinâmicos -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Novo Cliente (Copiado do Admin para consistência) -->
+    <div id="newClientModal"
+        class="hidden fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-3xl p-10">
+            <h2 class="text-2xl font-black font-outfit mb-6">Cadastrar <span class="text-red-500">Novo Cliente</span>
+            </h2>
+            <form id="clientForm" class="space-y-4">
+                <input type="text" id="name" placeholder="Nome Completo" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <input type="text" id="username" placeholder="Login (ex: joao)" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <input type="password" id="password" placeholder="Senha" required
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none">
+                <select id="plan"
+                    class="w-full bg-zinc-950 border border-zinc-800 rounded-2xl px-5 py-3 focus:ring-2 focus:ring-red-600/50 outline-none font-bold text-zinc-400 text-xs">
+                    <option value="pro">Plano Profissional (R$ 25,00/mês)</option>
+                    <option value="premium">Plano Premium (R$ 40,00/mês)</option>
+                </select>
+                <div class="flex gap-4 pt-6">
+                    <button type="button" onclick="closeModal()"
+                        class="flex-1 py-3 text-zinc-500 font-bold hover:text-white">Cancelar</button>
+                    <button type="submit" id="saveClientBtn"
+                        class="flex-[2] py-3 bg-red-600 text-white rounded-2xl font-black">SALVAR
+                        ACESSO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const sb = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '/';
+
+        const searchInput = document.querySelector('input[type="text"]');
+
+        async function loadClients(query = '') {
+            let rpc = sb.from('gestao_clientes_as').select('*');
+
+            if (query) {
+                rpc = rpc.or(`name.ilike.%${query}%,username.ilike.%${query}%`);
+            }
+
+            const { data: clients, error } = await rpc;
+
+            if (error) {
+                console.error(error);
+                document.getElementById('clientsTable').innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-zinc-600 italic">Erro ao carregar banco de dados.</td></tr>';
+                return;
+            }
+
+            const table = document.getElementById('clientsTable');
+            if (!clients || clients.length === 0) {
+                table.innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-zinc-600 italic">Nenhum cliente encontrado.</td></tr>';
+                return;
+            }
+            table.innerHTML = clients.map(c => `
+                    <tr class="hover:bg-zinc-900/50 transition-colors">
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold">
+                                    ${c.name.substring(0, 2).toUpperCase()}
+                                </div>
+                                <div>
+                                    <p class="font-bold">${c.name}</p>
+                                    <p class="text-xs text-zinc-500">@${c.username}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-sm text-zinc-400">
+                            ${new Date(c.created_at).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 ${c.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'} rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+                                ${c.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <div class="flex justify-end gap-3">
+                                <button class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                                <button onclick="deleteClient('${c.id}')" class="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+        }
+
+        async function deleteClient(id) {
+            if (!confirm('Tem certeza que deseja excluir este cliente definitivamente?')) return;
+
+            const { error } = await sb.from('gestao_clientes_as').delete().eq('id', id);
+            if (error) alert('Erro ao excluir: ' + error.message);
+            else loadClients(searchInput.value);
+        }
+
+        document.getElementById('clientForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('saveClientBtn');
+            const originalText = btn.innerText;
+            btn.innerText = 'PROCESSANDO...';
+            btn.disabled = true;
+
+            const name = document.getElementById('name').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const planId = document.getElementById('plan').value;
+
+            // 1. Criar Cliente
+            const { data: client, error: clientErr } = await sb
+                .from('gestao_clientes_as')
+                .insert([{ name, username, password }])
+                .select()
+                .single();
+
+            if (clientErr) {
+                alert('Erro ao criar cliente: ' + clientErr.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. Criar Assinatura (30 dias de validade por padrão)
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 30);
+
+            const { error: subErr } = await sb
+                .from('gestao_assinaturas')
+                .insert([{
+                    client_id: client.id,
+                    plan_id: planId,
+                    status: 'active',
+                    expiry_date: expiryDate.toISOString()
+                }]);
+
+            if (subErr) {
+                alert('Cliente criado, mas erro na assinatura: ' + subErr.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            } else {
+                alert('Cliente e Assinatura criados com sucesso!');
+                closeModal();
+                loadClients();
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        function openModal() { document.getElementById('newClientModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('newClientModal').classList.add('hidden'); }
+
+        searchInput.addEventListener('input', (e) => loadClients(e.target.value));
+
+        loadClients();
+    </script>
+    </div>
+</body>
+
+</html>

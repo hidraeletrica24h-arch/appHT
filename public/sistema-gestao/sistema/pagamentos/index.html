@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico de Pagamentos | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Outfit:wght@400;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #050505;
+            color: #fff;
+        }
+
+        .font-outfit {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .card {
+            background: #0f0f12;
+            border: 1px solid #1a1a1a;
+        }
+    </style>
+</head>
+
+<body class="p-8">
+    <div class="max-w-5xl mx-auto space-y-8">
+        <header class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-outfit font-black">Histórico de <span class="text-red-500">Pagamentos</span>
+                </h1>
+                <p class="text-zinc-500">Rastreio de todas as transações realizadas.</p>
+            </div>
+            <a href="../admin/index.html" class="text-zinc-500 hover:text-white text-sm">← Painel Principal</a>
+        </header>
+
+        <div class="card rounded-3xl p-8">
+            <div class="flex gap-4 mb-8">
+                <select
+                    class="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-zinc-400 outline-none">
+                    <option>Filtrar por Mês</option>
+                    <option>Março</option>
+                    <option>Fevereiro</option>
+                </select>
+                <select
+                    class="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-zinc-400 outline-none">
+                    <option>Filtrar por Status</option>
+                    <option>Concluído</option>
+                    <option>Pendente</option>
+                </select>
+            </div>
+
+            <div class="space-y-3">
+                <div
+                    class="grid grid-cols-4 gap-4 p-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest border-b border-zinc-800">
+                    <span>Data</span>
+                    <span>Cliente</span>
+                    <span>Método</span>
+                    <span class="text-right">Valor</span>
+                </div>
+                <!-- mock items -->
+                <div class="grid grid-cols-4 gap-4 p-4 bg-zinc-950/50 rounded-xl text-sm items-center">
+                    <span class="text-zinc-400">10 Mar</span>
+                    <span class="font-bold">João Maria</span>
+                    <span class="text-xs text-zinc-500">Cartão de Crédito</span>
+                    <span class="text-right font-black text-white">R$ 49,90</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="payments-history" class="space-y-3">
+        <!-- Itens dinâmicos -->
+    </div>
+    </table>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const supabaseUrl = 'https://zobrtirnzxgwtvuxsukh.supabase.co';
+        const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
+        const sb = supabase.createClient(supabaseUrl, supabaseKey);
+
+        const role = localStorage.getItem('gestao_role');
+        if (role !== 'admin') window.location.href = '/';
+
+        async function loadHistory() {
+            const { data: subs, error } = await sb
+                .from('gestao_assinaturas')
+                .select('*, gestao_clientes_as(name), gestao_planos(name, price)')
+                .order('expiry_date', { ascending: false });
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            const container = document.getElementById('payments-history');
+            container.innerHTML = `
+                    <div class="grid grid-cols-4 gap-4 p-4 text-[10px] text-zinc-500 font-black uppercase tracking-widest border-b border-zinc-800">
+                        <span>Data Venc.</span>
+                        <span>Cliente</span>
+                        <span>Plano</span>
+                        <span class="text-right">Valor</span>
+                    </div>
+                ` + subs.map(s => `
+                    <div class="grid grid-cols-4 gap-4 p-4 bg-zinc-950/50 rounded-xl text-sm items-center">
+                        <span class="text-zinc-400">${new Date(s.expiry_date).toLocaleDateString('pt-BR')}</span>
+                        <span class="font-bold">${s.gestao_clientes_as?.name || 'N/A'}</span>
+                        <span class="text-xs text-zinc-500">${s.gestao_planos?.name || 'N/A'}</span>
+                        <span class="text-right font-black text-white">R$ ${(s.gestao_planos?.price || 0).toFixed(2).replace('.', ',')}</span>
+                    </div>
+                `).join('');
+        }
+
+        loadHistory();
+    </script>
+
+</html>

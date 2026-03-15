@@ -1,0 +1,11 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+data/
+sistema-gestao/node_modules/
+sistema-gestao/banco_dados_clientes/
