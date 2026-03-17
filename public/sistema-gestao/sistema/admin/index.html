@@ -216,10 +216,18 @@
             }
             table.innerHTML = clients.map(c => {
                 const subscription = c.gestao_assinaturas?.[0] || {};
+                
+                // Lógica de Status Online (visto nos últimos 2 minutos)
+                const lastSeen = c.last_seen ? new Date(c.last_seen) : null;
+                const isOnline = lastSeen && (Date.now() - lastSeen.getTime()) < 120000; // 2 minutos
+
                 return `
                 <tr class="hover:bg-zinc-800/30">
                     <td class="px-6 py-4">
-                        <div class="font-bold">${c.username}</div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-700'}"></div>
+                            <div class="font-bold">${c.username}</div>
+                        </div>
                         <div class="text-[10px] text-zinc-600">${c.id}</div>
                     </td>
                     <td class="px-6 py-4 text-xs text-zinc-500">${c.name}</td>
@@ -352,6 +360,9 @@
         }
 
         function logout() { sessionStorage.clear(); window.location.href = '/'; }
+
+        // Recarregar a cada 1 minuto para atualizar status online
+        setInterval(loadClients, 60000);
 
         loadClients();
     </script>

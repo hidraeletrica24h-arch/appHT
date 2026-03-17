@@ -93,8 +93,15 @@
         const supabaseKey = 'sb_publishable_nMMYqZOP74duygYZ3ePLHA_o4q88i5-';
         const sb = supabase.createClient(supabaseUrl, supabaseKey);
 
-        const role = localStorage.getItem('gestao_role');
-        if (role !== 'admin') window.location.href = '/';
+        const role = sessionStorage.getItem('gestao_role');
+        const loginTime = sessionStorage.getItem('gestao_login_time');
+        const EIGHT_HOURS = 8 * 60 * 60 * 1000;
+        const sessionExpired = !loginTime || (Date.now() - parseInt(loginTime)) > EIGHT_HOURS;
+
+        if (role !== 'admin' || sessionExpired) {
+            sessionStorage.clear();
+            window.location.href = '/';
+        }
 
         async function loadStats() {
             try {

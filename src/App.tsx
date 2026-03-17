@@ -20,7 +20,10 @@ import { supabase, checkSupabaseConnection } from './lib/supabase';
 type AppScreen = 'login' | 'portal' | 'tools';
 
 export default function App() {
-  const [screen, setScreen] = React.useState<AppScreen>('login');
+  const [screen, setScreen] = React.useState<AppScreen>(() => {
+    const savedScreen = sessionStorage.getItem('gestao_screen');
+    return (savedScreen as AppScreen) || 'login';
+  });
   const [activeTab, setActiveTab] = React.useState('dashboard');
   const [isSaving, setIsSaving] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
@@ -34,19 +37,53 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);
 
   // Dados do usuário logado
-  const [loggedUser, setLoggedUser] = React.useState<any>(null);
+  const [loggedUser, setLoggedUser] = React.useState<any>(() => {
+    const savedUser = sessionStorage.getItem('gestao_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
+
+  // Persistir estado no sessionStorage
+  React.useEffect(() => {
+    sessionStorage.setItem('gestao_screen', screen);
+    if (loggedUser) {
+      sessionStorage.setItem('gestao_user', JSON.stringify(loggedUser));
+    } else {
+      sessionStorage.removeItem('gestao_user');
+    }
+  }, [screen, loggedUser]);
 
   // Supabase periodic check (só quando nas ferramentas)
   React.useEffect(() => {
     if (screen !== 'tools') return;
+
+    // Heartbeat para marcar como online
+    const updateOnlineStatus = async () => {
+      if (supabase && loggedUser?.id && loggedUser?.role === 'client') {
+        try {
+          await (supabase as any)
+            .from('gestao_clientes_as')
+            .update({ last_seen: new Date().toISOString() })
+            .eq('id', loggedUser.id);
+        } catch (err) {
+          console.error('Erro ao atualizar status online:', err);
+        }
+      }
+    };
+
+    // Executa imediatamente e depois a cada 30 segundos
+    updateOnlineStatus();
+    const heartbeatInterval = setInterval(updateOnlineStatus, 30000);
 
     const interval = setInterval(async () => {
       const result = await checkSupabaseConnection();
       setSupabaseStatus(result);
     }, 30000);
 
-    return () => clearInterval(interval);
-  }, [screen]);
+    return () => {
+      clearInterval(interval);
+      clearInterval(heartbeatInterval);
+    };
+  }, [screen, loggedUser]);
 
   // Auto-save listener
   React.useEffect(() => {
