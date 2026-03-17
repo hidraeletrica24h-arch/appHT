@@ -129,15 +129,29 @@
                 table.innerHTML = '<tr><td colspan="4" class="px-8 py-10 text-center text-zinc-600 italic">Nenhum cliente encontrado.</td></tr>';
                 return;
             }
-            table.innerHTML = clients.map(c => `
+            table.innerHTML = clients.map(c => {
+                // Lógica de Status Online (5 minutos de tolerância)
+                const lastSeen = c.last_seen ? new Date(c.last_seen) : null;
+                const now = new Date();
+                const isOnline = lastSeen && (now.getTime() - lastSeen.getTime()) < 300000;
+
+                return `
                     <tr class="hover:bg-zinc-900/50 transition-colors">
                         <td class="px-8 py-6">
                             <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold">
-                                    ${c.name.substring(0, 2).toUpperCase()}
+                                <div class="relative">
+                                    <div class="w-10 h-10 bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-500 font-bold">
+                                        ${c.name.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-zinc-900 ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}"></div>
                                 </div>
                                 <div>
-                                    <p class="font-bold">${c.name}</p>
+                                    <div class="flex items-center gap-2">
+                                        <p class="font-bold">${c.name}</p>
+                                        <span class="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${isOnline ? 'bg-emerald-500/10 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}">
+                                            ${isOnline ? 'Online' : 'Offline'}
+                                        </span>
+                                    </div>
                                     <p class="text-xs text-zinc-500">@${c.username}</p>
                                 </div>
                             </div>
@@ -157,7 +171,8 @@
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                `;
+            }).join('');
         }
 
         async function deleteClient(id) {
@@ -307,6 +322,9 @@
         }
 
         searchInput.addEventListener('input', (e) => loadClients(e.target.value));
+
+        // Atualiza os status a cada 1 minuto
+        setInterval(() => loadClients(searchInput.value), 60000);
 
         loadClients();
     </script>
