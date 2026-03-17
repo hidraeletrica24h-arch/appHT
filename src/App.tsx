@@ -59,13 +59,17 @@ export default function App() {
     // Heartbeat para marcar como online
     const updateOnlineStatus = async () => {
       if (supabase && loggedUser?.id && loggedUser?.role === 'client') {
+        const now = new Date().toISOString();
+        console.log(`[Heartbeat] Atualizando status para ${loggedUser.id} em ${now}`);
         try {
-          await (supabase as any)
+          const { error } = await (supabase as any)
             .from('gestao_clientes_as')
-            .update({ last_seen: new Date().toISOString() })
+            .update({ last_seen: now })
             .eq('id', loggedUser.id);
+          
+          if (error) throw error;
         } catch (err) {
-          console.error('Erro ao atualizar status online:', err);
+          console.error('[Heartbeat] Erro ao atualizar status online:', err);
         }
       }
     };

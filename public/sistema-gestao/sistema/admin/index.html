@@ -204,10 +204,12 @@
                 `);
 
             if (error) {
-                console.error(error);
+                console.error('Erro Supabase:', error);
                 document.getElementById('clientsTable').innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-zinc-600 italic">Erro ao carregar ou banco vazio.</td></tr>';
                 return;
             }
+
+            console.log('Dados carregados:', clients); // Debug para ver se last_seen vem preenchido
 
             const table = document.getElementById('clientsTable');
             if (!clients || clients.length === 0) {
@@ -217,15 +219,17 @@
             table.innerHTML = clients.map(c => {
                 const subscription = c.gestao_assinaturas?.[0] || {};
                 
-                // Lógica de Status Online (visto nos últimos 2 minutos)
+                // Lógica de Status Online (visto nos últimos 5 minutos para maior segurança)
                 const lastSeen = c.last_seen ? new Date(c.last_seen) : null;
-                const isOnline = lastSeen && (Date.now() - lastSeen.getTime()) < 120000; // 2 minutos
+                const now = new Date();
+                const diffMs = now.getTime() - (lastSeen ? lastSeen.getTime() : 0);
+                const isOnline = lastSeen && diffMs < 300000; // 5 minutos em milissegundos
 
                 return `
                 <tr class="hover:bg-zinc-800/30">
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-700'}"></div>
+                            <div class="w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-zinc-700'}" title="${isOnline ? 'Online' : 'Offline'}"></div>
                             <div class="font-bold">${c.username}</div>
                         </div>
                         <div class="text-[10px] text-zinc-600">${c.id}</div>
