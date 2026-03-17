@@ -13,7 +13,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { db } from '../db';
 
 interface SidebarProps {
   activeTab: string;
@@ -38,6 +38,11 @@ const menuItems = [
 
 export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const [isOpen, setIsOpen] = React.useState(true);
+  const config = db.getConfig();
+  const companyName = config.companyName || "HidraElétrica";
+  const nameParts = companyName.split(' ');
+  const firstName = nameParts[0];
+  const restName = nameParts.slice(1).join(' ');
 
   return (
     <>
@@ -55,8 +60,8 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-zinc-800">
             <h1 className="text-xl font-bold tracking-tight">
-              <span className="text-white">Hidra</span>
-              <span className="text-red-600">Elétrica</span>
+              <span className="text-white">{firstName}</span>
+              <span className="text-app-primary">{restName ? ' ' + restName : ''}</span>
               <span className="ml-2 text-xs font-medium text-zinc-500 uppercase tracking-widest">PRO</span>
             </h1>
           </div>
@@ -69,7 +74,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                   activeTab === item.id
-                    ? "bg-red-600 text-white"
+                    ? "bg-app-primary text-white"
                     : "text-zinc-400 hover:text-white hover:bg-zinc-900"
                 )}
               >

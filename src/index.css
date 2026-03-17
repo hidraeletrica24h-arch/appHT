@@ -3,6 +3,7 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-app-primary: var(--app-primary, #dc2626);
 }
 
 @layer base {
@@ -10,6 +11,13 @@
     @apply bg-black text-zinc-100 antialiased;
   }
 }
+
+/* Utilitários para usar a cor dinâmica */
+.bg-app-primary { background-color: var(--app-primary, #dc2626); }
+.text-app-primary { color: var(--app-primary, #dc2626); }
+.border-app-primary { border-color: var(--app-primary, #dc2626); }
+.ring-app-primary { --tw-ring-color: var(--app-primary, #dc2626); }
+.shadow-app-primary { --tw-shadow-color: var(--app-primary, #dc2626); }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {

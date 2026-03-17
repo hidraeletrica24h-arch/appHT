@@ -15,6 +15,7 @@ export function Dashboard() {
   const clients = db.getClients();
   const budgets = db.getBudgets();
   const orders = db.getOrders();
+  const config = db.getConfig();
 
   const monthlyRevenue = budgets
     .filter(b => b.status === 'completed' || b.status === 'approved')
@@ -31,7 +32,7 @@ export function Dashboard() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-white">Dashboard</h2>
-        <p className="text-zinc-400">Bem-vindo ao HidraElétrica PRO. Aqui está o resumo do seu negócio.</p>
+        <p className="text-zinc-400">Bem-vindo ao {config.companyName || "HidraElétrica PRO"}. Aqui está o resumo do seu negócio.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
