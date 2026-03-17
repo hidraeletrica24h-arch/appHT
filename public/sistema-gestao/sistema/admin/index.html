@@ -271,11 +271,33 @@
                     return;
                 }
 
-                // Atualizar assinatura (apenas o plano, se mudou)
-                const { error: subErr } = await sb
+                // Tenta atualizar a assinatura, se não existir, cria uma nova
+                const { data: existingSub } = await sb
                     .from('gestao_assinaturas')
-                    .update({ plan_id: planId })
-                    .eq('client_id', clientId);
+                    .select('id')
+                    .eq('client_id', clientId)
+                    .single();
+
+                let subErr;
+                if (existingSub) {
+                    const { error } = await sb
+                        .from('gestao_assinaturas')
+                        .update({ plan_id: planId })
+                        .eq('client_id', clientId);
+                    subErr = error;
+                } else {
+                    const expiryDate = new Date();
+                    expiryDate.setDate(expiryDate.getDate() + 30);
+                    const { error } = await sb
+                        .from('gestao_assinaturas')
+                        .insert([{
+                            client_id: clientId,
+                            plan_id: planId,
+                            status: 'active',
+                            expiry_date: expiryDate.toISOString()
+                        }]);
+                    subErr = error;
+                }
 
                 if (subErr) {
                     alert('Cliente atualizado, mas erro na assinatura: ' + subErr.message);
