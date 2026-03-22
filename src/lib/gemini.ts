@@ -13,7 +13,7 @@ export interface GeminiBudgetResponse {
 export async function processVoiceBudget(transcript: string): Promise<GeminiBudgetResponse> {
   const config = db.getConfig();
   // Usa a chave configurada pelo usuário, mas com um fallback para a chave fornecida na sessão.
-  const apiKey = config.geminiApiKey || 'AIzaSyC5zlHuDBDIxA6KrlFY7hhVieuxp2mNJAw';
+  const apiKey = config.geminiApiKey || 'AIzaSyAdIL15Br_qY88uWlgQ4oac61dWAV6Zm5U';
 
   if (!apiKey) {
     throw new Error('Chave da API do Gemini não configurada.');
@@ -36,7 +36,7 @@ Analise o pedido e monte uma lista de itens necessários para esse orçamento.
   ]
 }`;
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

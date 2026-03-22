@@ -477,7 +477,7 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="space-y-1">
                        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Google Gemini API Key</label>
-                       <input type="password" defaultValue={config.geminiApiKey || "AIzaSyC5zlHuDBDIxA6KrlFY7hhVieuxp2mNJAw"} onBlur={(e) => updateConfig('geminiApiKey', e.target.value)} placeholder="Sua chave secreta..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-red-600/50 outline-none" />
+                       <input type="password" defaultValue={config.geminiApiKey || "AIzaSyAdIL15Br_qY88uWlgQ4oac61dWAV6Zm5U"} onBlur={(e) => updateConfig('geminiApiKey', e.target.value)} placeholder="Sua chave secreta..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-red-600/50 outline-none" />
                        <p className="text-[10px] text-zinc-500 mt-1">Habilita a criação de orçamentos por voz e estimativa de preços (Mão de Obra e Materiais).</p>
                     </div>
                   </div>
