@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { db } from '../db';
+import { cn } from '../lib/utils';
 
 interface SidebarProps {
   activeTab: string;
