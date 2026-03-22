@@ -4,6 +4,7 @@ export interface GeminiBudgetResponse {
   items: Array<{
     name: string;
     type: 'service' | 'material';
+    category: 'eletrico' | 'hidraulico';
     quantity: number;
     unitPrice: number;
   }>;
@@ -27,10 +28,11 @@ Sua tarefa:
 Analise o pedido e monte uma lista de itens necessários para esse orçamento.
 - Estime o preço de mão de obra e materiais com base no mercado real/regional de Alvorada/RS (em reais). Valores justos.
 - O campo "type" deve ser estritamente "service" para mão de obra ou "material" para materiais.
-- Retorne APENAS um JSON válido seguindo exatamente esta estrutura, sem absolutamente nenhum texto extra (não use blocos Markdown de código):
+- O campo "category" deve ser obrigatoriamente "eletrico" ou "hidraulico", dependendo da natureza do item.
+- Retorne APENAS um JSON válido seguindo exatamente esta estrutura, sem absolutamente nenhum texto extra:
 {
   "items": [
-    { "name": "Nome do Serviço/Material", "type": "service", "quantity": 1, "unitPrice": 150.00 }
+    { "name": "Nome do Serviço", "type": "service", "category": "eletrico", "quantity": 1, "unitPrice": 150.00 }
   ]
 }`;
 

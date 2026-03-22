@@ -27,6 +27,7 @@ export function Budgets() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isRecording, setIsRecording] = React.useState(false);
   const [isProcessingAI, setIsProcessingAI] = React.useState(false);
+  const recognitionRef = React.useRef<any>(null);
 
   // Form State
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
@@ -253,7 +254,14 @@ export function Budgets() {
     }
   };
 
-  const startVoiceRecognition = () => {
+  const toggleVoiceRecognition = () => {
+    if (isRecording && recognitionRef.current) {
+      // Se já estiver gravando, para a gravação
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Seu navegador atual não suporta gravação de voz ou você não deu permissão ao microfone. Tente usar o Google Chrome no Computador/Android.");
@@ -261,32 +269,73 @@ export function Budgets() {
     }
     const recognition = new SpeechRecognition();
     recognition.lang = 'pt-BR';
+    recognition.continuous = true; // Continua escutando até mandar parar
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+
+    let finalTranscript = '';
 
     recognition.onstart = () => {
       setIsRecording(true);
     };
 
-    recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript;
+    recognition.onresult = (event: any) => {
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + ' ';
+        }
+      }
+    };
+
+    // Usando onend ao invés de onresult direto para enviar pra IA só quando o usuário parar
+    recognition.onend = async () => {
       setIsRecording(false);
+      
+      const textToProcess = finalTranscript.trim();
+      if (!textToProcess) return;
+
       setIsProcessingAI(true);
       try {
         const { processVoiceBudget } = await import('../lib/gemini');
-        const response = await processVoiceBudget(transcript);
+        const response = await processVoiceBudget(textToProcess);
         
-        const newItems = response.items.map(aiItem => ({
-          id: crypto.randomUUID(),
-          type: aiItem.type,
-          itemId: crypto.randomUUID(), // ID fictício para os itens gerados customizados da IA
-          name: aiItem.name + ' (Sugerido via IA)',
-          quantity: aiItem.quantity,
-          unitPrice: aiItem.unitPrice,
-          totalPrice: aiItem.quantity * aiItem.unitPrice
-        }));
+        const newItems: BudgetItem[] = [];
         
-        // Ensure TS typings don't complain
+        for (const aiItem of response.items) {
+          const itemId = crypto.randomUUID();
+          
+          // 1. Salvar permanentemente no banco de dados para reutilização futura
+          if (aiItem.type === 'service') {
+            db.saveService({
+              id: itemId,
+              name: aiItem.name + ' (IA)',
+              category: aiItem.category || 'eletrico',
+              basePrice: aiItem.unitPrice,
+              suggestedMaterials: []
+            });
+          } else {
+            db.saveMaterial({
+              id: itemId,
+              name: aiItem.name + ' (IA)',
+              category: aiItem.category || 'eletrico',
+              price: aiItem.unitPrice,
+              unit: 'un',
+              order: 99
+            });
+          }
+
+          // 2. Adicionar ao orçamento atual
+          newItems.push({
+            id: crypto.randomUUID(),
+            type: aiItem.type,
+            itemId: itemId,
+            name: aiItem.name + ' (Sugerido via IA)',
+            quantity: aiItem.quantity,
+            unitPrice: aiItem.unitPrice,
+            totalPrice: aiItem.quantity * aiItem.unitPrice
+          });
+        }
+        
+        // Ensure TS typings don't complain e recarregar componentes
         setItems(prev => [...prev, ...newItems] as BudgetItem[]);
       } catch (err: any) {
         alert(err.message || "Erro ao processar o orçamento via voz com a IA.");
@@ -297,11 +346,14 @@ export function Budgets() {
 
     recognition.onerror = (event: any) => {
       console.error("Erro na escuta da voz:", event.error);
-      alert("Houve um problema ao capturar a sua voz. (" + event.error + ")");
+      if (event.error !== 'no-speech') {
+        alert("Houve um problema ao capturar a sua voz. (" + event.error + ")");
+      }
       setIsRecording(false);
       setIsProcessingAI(false);
     };
 
+    recognitionRef.current = recognition;
     recognition.start();
   };
 
@@ -528,18 +580,18 @@ export function Budgets() {
               <div className="flex items-center gap-4">
                 <h3 className="text-xl font-bold text-white">Novo Orçamento Profissional</h3>
                 <button 
-                  onClick={startVoiceRecognition} 
-                  disabled={isRecording || isProcessingAI}
+                  onClick={toggleVoiceRecognition} 
+                  disabled={isProcessingAI}
                   className={cn(
                     "flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-bold uppercase tracking-widest transition-all",
                     isRecording 
-                      ? "bg-red-600 text-white border-red-600 animate-pulse" 
+                      ? "bg-red-600 text-white border-red-600 animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]" 
                       : isProcessingAI 
                         ? "bg-amber-500/20 text-amber-500 border-amber-500/50 cursor-wait"
                         : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20"
                   )}
                 >
-                  {isRecording ? "🔴 Gravando..." : isProcessingAI ? "🧠 IA Pensando..." : "🎙️ Orçar por Voz"}
+                  {isRecording ? "⏹ PARAR GRAVAÇÃO" : isProcessingAI ? "🧠 IA Pensando..." : "🎙️ Orçar por Voz"}
                 </button>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white">
