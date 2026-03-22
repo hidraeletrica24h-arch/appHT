@@ -4,12 +4,31 @@ import { db } from '../db';
 import { Client } from '../types';
 import { motion } from 'motion/react';
 import { cn, formatDate } from '../lib/utils';
+import { useAIVoice } from '../hooks/useAIVoice';
 
 export function Clients() {
   const [clients, setClients] = React.useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
+
+  const { isRecording, isProcessingAI, toggleRecording } = useAIVoice({
+    context: 'client',
+    onSuccess: (data) => {
+      const newClient: Client = {
+        id: crypto.randomUUID(),
+        name: data.name || 'Cliente Sem Nome',
+        phone: data.phone || '',
+        document: data.document || '',
+        address: data.address || '',
+        city: data.city || 'Alvorada',
+        observations: data.observations || '',
+        createdAt: new Date().toISOString(),
+      };
+      db.saveClient(newClient);
+      setClients(db.getClients());
+    }
+  });
 
   React.useEffect(() => {
     setClients(db.getClients());
@@ -54,16 +73,32 @@ export function Clients() {
           <h2 className="text-3xl font-bold text-white">Clientes</h2>
           <p className="text-zinc-400">Gerencie sua base de contatos e clientes.</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingClient(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
-        >
-          <UserPlus size={18} />
-          Novo Cliente
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleRecording}
+            disabled={isProcessingAI}
+            className={cn(
+              "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all",
+              isRecording
+                ? "bg-red-600 text-white animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                : isProcessingAI
+                  ? "bg-amber-500/20 text-amber-500 border border-amber-500/50 cursor-wait"
+                  : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+            )}
+          >
+            {isRecording ? "⏹ PARAR" : isProcessingAI ? "🧠 IA..." : "🎙️ Por Voz"}
+          </button>
+          <button
+            onClick={() => {
+              setEditingClient(null);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
+          >
+            <UserPlus size={18} />
+            Novo Cliente
+          </button>
+        </div>
       </div>
 
       <div className="relative">

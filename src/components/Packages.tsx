@@ -4,6 +4,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { db } from '../db';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
+import { useAIVoice } from '../hooks/useAIVoice';
 
 const defaultPackages = [
   {
@@ -76,6 +77,23 @@ export function Packages() {
   const [isImporting, setIsImporting] = React.useState(false);
   const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const { isRecording, isProcessingAI, toggleRecording } = useAIVoice({
+    context: 'package',
+    onSuccess: (data) => {
+      const newPackage = {
+        id: crypto.randomUUID(),
+        name: data.name || 'Pacote Sem Nome',
+        category: data.category || 'geral',
+        price: data.price || 0,
+        items: Array.isArray(data.items) ? data.items : [],
+        color: data.category === 'eletrico' ? 'text-red-500' : data.category === 'hidraulico' ? 'text-blue-500' : 'text-zinc-500',
+        bg: data.category === 'eletrico' ? 'bg-red-500/10' : data.category === 'hidraulico' ? 'bg-blue-500/10' : 'bg-zinc-500/10',
+      };
+      db.savePackage(newPackage);
+      setPackages(db.getPackages());
+    }
+  });
 
   const refresh = () => {
     const loaded = db.getPackages();
@@ -205,6 +223,20 @@ export function Packages() {
           <p className="text-zinc-400">Soluções completas com preços fechados para facilitar a venda.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleRecording}
+            disabled={isProcessingAI}
+            className={cn(
+              "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all",
+              isRecording
+                ? "bg-red-600 text-white animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                : isProcessingAI
+                  ? "bg-amber-500/20 text-amber-500 border border-amber-500/50 cursor-wait"
+                  : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+            )}
+          >
+            {isRecording ? "⏹ PARAR" : isProcessingAI ? "🧠 IA..." : "🎙️ Por Voz"}
+          </button>
           <input
             type="file"
             ref={fileInputRef}

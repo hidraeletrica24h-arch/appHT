@@ -5,6 +5,7 @@ import { Material } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import * as XLSX from 'xlsx';
+import { useAIVoice } from '../hooks/useAIVoice';
 
 interface CatalogProps {
   category: 'eletrico' | 'hidraulico';
@@ -19,6 +20,29 @@ export function MaterialCatalog({ category }: CatalogProps) {
   const [isImporting, setIsImporting] = React.useState(false);
   const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const { isRecording, isProcessingAI, toggleRecording } = useAIVoice({
+    context: 'material',
+    onSuccess: (data) => {
+      const newMaterial: Material = {
+        id: crypto.randomUUID(),
+        name: data.name || 'Material Sem Nome',
+        category: data.category === 'hidraulico' ? 'hidraulico' : 'eletrico',
+        price: data.price || 0,
+        unit: data.unit || 'un',
+      };
+      db.saveMaterial(newMaterial);
+      
+      const all = db.getMaterials();
+      const filteredByCategory = all.filter(m => {
+        const cat = m.category?.toLowerCase();
+        if (category === 'eletrico') return cat === 'eletrico' || cat === 'elétrico';
+        if (category === 'hidraulico') return cat === 'hidraulico' || cat === 'hidráulico';
+        return false;
+      });
+      setMaterials(filteredByCategory);
+    }
+  });
 
   React.useEffect(() => {
     const refresh = () => {
@@ -157,6 +181,20 @@ export function MaterialCatalog({ category }: CatalogProps) {
           <p className="text-zinc-400">Catálogo de materiais e insumos.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={toggleRecording}
+            disabled={isProcessingAI}
+            className={cn(
+              "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all",
+              isRecording
+                ? "bg-red-600 text-white animate-pulse shadow-[0_0_20px_rgba(220,38,38,0.5)]"
+                : isProcessingAI
+                  ? "bg-amber-500/20 text-amber-500 border border-amber-500/50 cursor-wait"
+                  : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+            )}
+          >
+            {isRecording ? "⏹ PARAR" : isProcessingAI ? "🧠 IA..." : "🎙️ Por Voz"}
+          </button>
           <input
             type="file"
             ref={fileInputRef}

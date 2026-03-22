@@ -20,14 +20,52 @@ import { cn, formatCurrency, formatDate } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useAIVoice } from '../hooks/useAIVoice';
 
 export function Budgets() {
   const [budgets, setBudgets] = React.useState<Budget[]>([]);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
-  const [isRecording, setIsRecording] = React.useState(false);
-  const [isProcessingAI, setIsProcessingAI] = React.useState(false);
-  const recognitionRef = React.useRef<any>(null);
+  const { isRecording, isProcessingAI, toggleRecording: toggleVoiceRecognition } = useAIVoice({
+    context: 'budget',
+    onSuccess: (data) => {
+      const newItems: BudgetItem[] = [];
+      
+      for (const aiItem of (data.items || [])) {
+        const itemId = crypto.randomUUID();
+        
+        if (aiItem.type === 'service') {
+          db.saveService({
+            id: itemId,
+            name: aiItem.name,
+            category: aiItem.category || 'eletrico',
+            basePrice: aiItem.unitPrice,
+            suggestedMaterials: []
+          });
+        } else {
+          db.saveMaterial({
+            id: itemId,
+            name: aiItem.name,
+            category: aiItem.category || 'eletrico',
+            price: aiItem.unitPrice,
+            unit: 'un',
+          });
+        }
+
+        newItems.push({
+          id: crypto.randomUUID(),
+          type: aiItem.type,
+          itemId: itemId,
+          name: aiItem.name,
+          quantity: aiItem.quantity,
+          unitPrice: aiItem.unitPrice,
+          totalPrice: aiItem.quantity * aiItem.unitPrice
+        });
+      }
+      
+      setItems(prev => [...prev, ...newItems]);
+    }
+  });
 
   // Form State
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
@@ -252,109 +290,6 @@ export function Budgets() {
       console.error('Erro ao gerar PDF:', error);
       alert('Ocorreu um erro ao gerar o PDF. Verifique o console para mais detalhes.');
     }
-  };
-
-  const toggleVoiceRecognition = () => {
-    if (isRecording && recognitionRef.current) {
-      // Se já estiver gravando, para a gravação
-      recognitionRef.current.stop();
-      setIsRecording(false);
-      return;
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert("Seu navegador atual não suporta gravação de voz ou você não deu permissão ao microfone. Tente usar o Google Chrome no Computador/Android.");
-      return;
-    }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.continuous = true; // Continua escutando até mandar parar
-    recognition.interimResults = false;
-
-    let finalTranscript = '';
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript + ' ';
-        }
-      }
-    };
-
-    // Usando onend ao invés de onresult direto para enviar pra IA só quando o usuário parar
-    recognition.onend = async () => {
-      setIsRecording(false);
-      
-      const textToProcess = finalTranscript.trim();
-      if (!textToProcess) return;
-
-      setIsProcessingAI(true);
-      try {
-        const { processVoiceBudget } = await import('../lib/gemini');
-        const response = await processVoiceBudget(textToProcess);
-        
-        const newItems: BudgetItem[] = [];
-        
-        for (const aiItem of response.items) {
-          const itemId = crypto.randomUUID();
-          
-          // 1. Salvar permanentemente no banco de dados para reutilização futura
-          if (aiItem.type === 'service') {
-            db.saveService({
-              id: itemId,
-              name: aiItem.name,
-              category: aiItem.category || 'eletrico',
-              basePrice: aiItem.unitPrice,
-              suggestedMaterials: []
-            });
-          } else {
-            db.saveMaterial({
-              id: itemId,
-              name: aiItem.name,
-              category: aiItem.category || 'eletrico',
-              price: aiItem.unitPrice,
-              unit: 'un',
-              order: 99
-            });
-          }
-
-          // 2. Adicionar ao orçamento atual
-          newItems.push({
-            id: crypto.randomUUID(),
-            type: aiItem.type,
-            itemId: itemId,
-            name: aiItem.name,
-            quantity: aiItem.quantity,
-            unitPrice: aiItem.unitPrice,
-            totalPrice: aiItem.quantity * aiItem.unitPrice
-          });
-        }
-        
-        // Ensure TS typings don't complain e recarregar componentes
-        setItems(prev => [...prev, ...newItems] as BudgetItem[]);
-      } catch (err: any) {
-        alert(err.message || "Erro ao processar o orçamento via voz com a IA.");
-      } finally {
-        setIsProcessingAI(false);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Erro na escuta da voz:", event.error);
-      if (event.error !== 'no-speech') {
-        alert("Houve um problema ao capturar a sua voz. (" + event.error + ")");
-      }
-      setIsRecording(false);
-      setIsProcessingAI(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
   };
 
   const generateExcel = (budget: Budget, type: 'client' | 'supplier') => {
