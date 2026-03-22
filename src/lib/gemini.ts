@@ -24,7 +24,8 @@ export async function processVoiceCommand(transcript: string, context: 'client' 
     prompt = `Você é um orçamentista profissional especialista em serviços elétricos e hidráulicos da região de Alvorada/RS.
 O cliente enviou um comando de voz: "${transcript}"
 Sua tarefa: Monte uma lista de itens necessários para esse orçamento.
-- Estime o preço base no mercado de Alvorada/RS. Valores justos.
+- Estime o preço base no mercado de Alvorada/RS. Considere os preços de mercado (baixo, médio, alto) e use SEMPRE o preço INTERMEDIÁRIO. Não use preços abusivos.
+- Para mão de obra elétrica, a instalação deve respeitar rigorosamente as normas técnicas da área (ex: NBR 5410).
 - O campo "type" deve ser estritamente "service" (mão de obra) ou "material" (materiais).
 - O campo "category" deve ser obrigatoriamente "eletrico" ou "hidraulico".
 Emita APENAS O JSON, sem blocos markdown:
@@ -46,9 +47,11 @@ Emita APENAS O JSON, sem blocos markdown:
 Comando: "${transcript}"
 - Crie um título profissional para o serviço. Ex: "Instalação de Tomada 220v".
 - Defina se é da "category": "eletrico" ou "hidraulico".
-- Defina um "basePrice" numérico realista para a região.
+- Defina um "basePrice" numérico realista para a região. Analise valores baixos, médios e altos, e retorne SEMPRE o preço INTERMEDIÁRIO. Não use valores abusivos.
+- Para serviços elétricos, garanta que leva em consideração que a instalação deve seguir as normas técnicas da área (NBR).
+- Forneça uma lista de materiais sugeridos ("suggestedMaterials") essenciais para este serviço ser executado, com nome, unidade (un, m, cx...) e preço sugerido (também intermediário e justo).
 Emita APENAS O JSON, sem blocos markdown:
-{ "name": "Nome", "category": "eletrico", "basePrice": 80.00 }`;
+{ "name": "Nome", "category": "eletrico", "basePrice": 80.00, "suggestedMaterials": [{"name": "Fio 2.5mm", "unit": "m", "price": 2.50}] }`;
   }
 
   else if (context === 'material') {
@@ -67,7 +70,7 @@ Emita APENAS O JSON, sem blocos markdown:
 Comando: "${transcript}"
 - Crie um "name" para o pacote.
 - Defina "category": "eletrico" ou "hidraulico".
-- Estabeleça um "price" total fechado.
+- Estabeleça um "price" total fechado. Pense em valores baixos, médios e altos, e retorne o INTERMEDIÁRIO. Sem valores abusivos e sempre respeitando as normas aplicáveis (NBR).
 - Crie um array "items" (strings) listando 3 a 5 itens e vantagens do pacote para o cliente.
 Emita APENAS O JSON, sem blocos markdown:
 { "name": "Nome", "category": "eletrico", "price": 500.00, "items": ["Item 1", "Item 2"] }`;

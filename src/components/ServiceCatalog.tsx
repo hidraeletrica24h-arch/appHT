@@ -27,12 +27,32 @@ export function ServiceCatalog({ category }: CatalogProps) {
   const { isRecording, isProcessingAI, toggleRecording } = useAIVoice({
     context: 'service',
     onSuccess: (data) => {
+      const suggestedMaterialIds: string[] = [];
+      const serviceCat = data.category === 'hidraulico' ? 'hidraulico' : 'eletrico';
+
+      if (data.suggestedMaterials && Array.isArray(data.suggestedMaterials)) {
+        data.suggestedMaterials.forEach((mat: any) => {
+          const matId = crypto.randomUUID();
+          db.saveMaterial({
+            id: matId,
+            name: mat.name || 'Material Sem Nome',
+            category: serviceCat,
+            price: mat.price || 0,
+            unit: mat.unit || 'un'
+          });
+          suggestedMaterialIds.push(matId);
+        });
+        
+        // Refresh the materials state so they show up immediately in the UI
+        setAllMaterials(db.getMaterials());
+      }
+
       const newService: Service = {
         id: crypto.randomUUID(),
         name: data.name || 'Serviço Sem Nome',
-        category: data.category === 'hidraulico' ? 'hidraulico' : 'eletrico',
+        category: serviceCat,
         basePrice: data.basePrice || 0,
-        suggestedMaterials: [],
+        suggestedMaterials: suggestedMaterialIds,
       };
       db.saveService(newService);
       
