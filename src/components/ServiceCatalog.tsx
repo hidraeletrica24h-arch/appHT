@@ -21,6 +21,8 @@ export function ServiceCatalog({ category }: CatalogProps) {
   const [isImporting, setIsImporting] = React.useState(false);
   const [importStatus, setImportStatus] = React.useState<{ type: 'success' | 'error' | 'loading', message: string } | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [newMatName, setNewMatName] = React.useState('');
+  const [newMatPrice, setNewMatPrice] = React.useState('');
 
   const { isRecording, isProcessingAI, toggleRecording } = useAIVoice({
     context: 'service',
@@ -341,24 +343,133 @@ export function ServiceCatalog({ category }: CatalogProps) {
 
                 <div>
                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Materiais Sugeridos</p>
-                  <div className="space-y-2">
-                    {selectedService.suggestedMaterials.length > 0 ? (
-                      selectedService.suggestedMaterials.map(mId => {
-                        const mat = getMaterialDetails(mId);
-                        return mat ? (
-                          <div key={mId} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
-                            <div className="flex items-center gap-3">
-                              <Package size={16} className="text-zinc-500" />
-                              <span className="text-sm text-zinc-300">{mat.name}</span>
+                  {isEditing && editForm ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <select
+                          id="suggested-material-select"
+                          className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        >
+                          <option value="">Selecione um material...</option>
+                          {allMaterials
+                            .filter(m => !editForm.suggestedMaterials.includes(m.id))
+                            .map(m => (
+                              <option key={m.id} value={m.id}>{m.name} - {formatCurrency(m.price)}</option>
+                            ))}
+                        </select>
+                        <button
+                          onClick={() => {
+                            const select = document.getElementById('suggested-material-select') as HTMLSelectElement;
+                            if (select.value) {
+                              setEditForm({ 
+                                ...editForm, 
+                                suggestedMaterials: [...editForm.suggestedMaterials, select.value] 
+                              });
+                              select.value = '';
+                            }
+                          }}
+                          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl font-bold transition-colors"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        {editForm.suggestedMaterials.length > 0 ? (
+                          editForm.suggestedMaterials.map(mId => {
+                            const mat = getMaterialDetails(mId);
+                            return mat ? (
+                              <div key={mId} className="flex items-center justify-between p-3 bg-zinc-900 border border-zinc-800 rounded-xl">
+                                <div className="flex items-center gap-3">
+                                  <Package size={16} className="text-zinc-500" />
+                                  <span className="text-sm text-zinc-300">{mat.name}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-xs font-bold text-zinc-500">{formatCurrency(mat.price)}</span>
+                                  <button
+                                    onClick={() => {
+                                      setEditForm({ 
+                                        ...editForm, 
+                                        suggestedMaterials: editForm.suggestedMaterials.filter(id => id !== mId) 
+                                      });
+                                    }}
+                                    className="text-zinc-500 hover:text-red-500 transition-colors"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null;
+                          })
+                        ) : (
+                          <p className="text-sm text-zinc-500 italic">Nenhum material adicionado.</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2 pt-2 border-t border-zinc-800">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ou Criar e Adicionar Novo Material</p>
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Nome..." 
+                            value={newMatName}
+                            onChange={e => setNewMatName(e.target.value)}
+                            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                          />
+                          <input 
+                            type="number"
+                            step="0.01" 
+                            placeholder="R$" 
+                            value={newMatPrice}
+                            onChange={e => setNewMatPrice(e.target.value)}
+                            className="w-24 bg-zinc-950 border border-zinc-800 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                          />
+                          <button
+                            onClick={() => {
+                              if (newMatName && newMatPrice) {
+                                const newMatId = crypto.randomUUID();
+                                const newMat: Material = {
+                                  id: newMatId,
+                                  name: newMatName,
+                                  category,
+                                  price: parseFloat(newMatPrice),
+                                  unit: 'un'
+                                };
+                                db.saveMaterial(newMat);
+                                setAllMaterials(db.getMaterials());
+                                setEditForm({
+                                  ...editForm,
+                                  suggestedMaterials: [...editForm.suggestedMaterials, newMatId]
+                                });
+                                setNewMatName('');
+                                setNewMatPrice('');
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors"
+                          >
+                            <Plus size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedService.suggestedMaterials.length > 0 ? (
+                        selectedService.suggestedMaterials.map(mId => {
+                          const mat = getMaterialDetails(mId);
+                          return mat ? (
+                            <div key={mId} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+                              <div className="flex items-center gap-3">
+                                <Package size={16} className="text-zinc-500" />
+                                <span className="text-sm text-zinc-300">{mat.name}</span>
+                              </div>
+                              <span className="text-xs font-bold text-zinc-500">{formatCurrency(mat.price)}</span>
                             </div>
-                            <span className="text-xs font-bold text-zinc-500">{formatCurrency(mat.price)}</span>
-                          </div>
-                        ) : null;
-                      })
-                    ) : (
-                      <p className="text-sm text-zinc-500 italic">Nenhum material sugerido para este serviço.</p>
-                    )}
-                  </div>
+                          ) : null;
+                        })
+                      ) : (
+                        <p className="text-sm text-zinc-500 italic">Nenhum material sugerido para este serviço.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
