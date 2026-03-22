@@ -307,7 +307,7 @@ export function Budgets() {
           if (aiItem.type === 'service') {
             db.saveService({
               id: itemId,
-              name: aiItem.name + ' (IA)',
+              name: aiItem.name,
               category: aiItem.category || 'eletrico',
               basePrice: aiItem.unitPrice,
               suggestedMaterials: []
@@ -315,7 +315,7 @@ export function Budgets() {
           } else {
             db.saveMaterial({
               id: itemId,
-              name: aiItem.name + ' (IA)',
+              name: aiItem.name,
               category: aiItem.category || 'eletrico',
               price: aiItem.unitPrice,
               unit: 'un',
@@ -328,7 +328,7 @@ export function Budgets() {
             id: crypto.randomUUID(),
             type: aiItem.type,
             itemId: itemId,
-            name: aiItem.name + ' (Sugerido via IA)',
+            name: aiItem.name,
             quantity: aiItem.quantity,
             unitPrice: aiItem.unitPrice,
             totalPrice: aiItem.quantity * aiItem.unitPrice
