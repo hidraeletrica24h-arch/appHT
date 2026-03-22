@@ -25,6 +25,8 @@ export function Budgets() {
   const [budgets, setBudgets] = React.useState<Budget[]>([]);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [isProcessingAI, setIsProcessingAI] = React.useState(false);
 
   // Form State
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
@@ -251,6 +253,58 @@ export function Budgets() {
     }
   };
 
+  const startVoiceRecognition = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Seu navegador atual não suporta gravação de voz ou você não deu permissão ao microfone. Tente usar o Google Chrome no Computador/Android.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setIsRecording(false);
+      setIsProcessingAI(true);
+      try {
+        const { processVoiceBudget } = await import('../lib/gemini');
+        const response = await processVoiceBudget(transcript);
+        
+        const newItems = response.items.map(aiItem => ({
+          id: crypto.randomUUID(),
+          type: aiItem.type,
+          itemId: crypto.randomUUID(), // ID fictício para os itens gerados customizados da IA
+          name: aiItem.name + ' (Sugerido via IA)',
+          quantity: aiItem.quantity,
+          unitPrice: aiItem.unitPrice,
+          totalPrice: aiItem.quantity * aiItem.unitPrice
+        }));
+        
+        // Ensure TS typings don't complain
+        setItems(prev => [...prev, ...newItems] as BudgetItem[]);
+      } catch (err: any) {
+        alert(err.message || "Erro ao processar o orçamento via voz com a IA.");
+      } finally {
+        setIsProcessingAI(false);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Erro na escuta da voz:", event.error);
+      alert("Houve um problema ao capturar a sua voz. (" + event.error + ")");
+      setIsRecording(false);
+      setIsProcessingAI(false);
+    };
+
+    recognition.start();
+  };
+
   const generateExcel = (budget: Budget, type: 'client' | 'supplier') => {
     try {
       const materials = budget.items.filter(i => i.type === 'material');
@@ -471,7 +525,23 @@ export function Budgets() {
             className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             <div className="p-6 border-b border-zinc-800 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Novo Orçamento Profissional</h3>
+              <div className="flex items-center gap-4">
+                <h3 className="text-xl font-bold text-white">Novo Orçamento Profissional</h3>
+                <button 
+                  onClick={startVoiceRecognition} 
+                  disabled={isRecording || isProcessingAI}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 border rounded-lg text-xs font-bold uppercase tracking-widest transition-all",
+                    isRecording 
+                      ? "bg-red-600 text-white border-red-600 animate-pulse" 
+                      : isProcessingAI 
+                        ? "bg-amber-500/20 text-amber-500 border-amber-500/50 cursor-wait"
+                        : "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20"
+                  )}
+                >
+                  {isRecording ? "🔴 Gravando..." : isProcessingAI ? "🧠 IA Pensando..." : "🎙️ Orçar por Voz"}
+                </button>
+              </div>
               <button onClick={() => setIsModalOpen(false)} className="text-zinc-500 hover:text-white">
                 <X size={24} />
               </button>

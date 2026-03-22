@@ -468,6 +468,21 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                <div className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl space-y-4">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    Inteligência Artificial
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                       <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Google Gemini API Key</label>
+                       <input type="password" defaultValue={config.geminiApiKey || "AIzaSyC5zlHuDBDIxA6KrlFY7hhVieuxp2mNJAw"} onBlur={(e) => updateConfig('geminiApiKey', e.target.value)} placeholder="Sua chave secreta..." className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-red-600/50 outline-none" />
+                       <p className="text-[10px] text-zinc-500 mt-1">Habilita a criação de orçamentos por voz e estimativa de preços (Mão de Obra e Materiais).</p>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
               {/* Coluna 2: Bancos de Dados e Sistema */}
