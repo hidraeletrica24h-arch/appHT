@@ -12,7 +12,10 @@ export interface GeminiBudgetResponse {
 
 export async function processVoiceCommand(transcript: string, context: 'client' | 'service' | 'material' | 'package' | 'budget'): Promise<any> {
   const config = db.getConfig();
-  const apiKey = config.geminiApiKey || 'AIzaSyAdIL15Br_qY88uWlgQ4oac61dWAV6Zm5U';
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const fallbackKey = 'AIzaSyAdIL15Br_qY88uWlgQ4oac61dWAV6Zm5U';
+  
+  const apiKey = config.geminiApiKey || envKey || fallbackKey;
 
   if (!apiKey) {
     throw new Error('Chave da API do Gemini não configurada.');
